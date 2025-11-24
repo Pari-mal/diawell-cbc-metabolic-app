@@ -368,7 +368,7 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 7, f"eGDR: {blocks['egdr_text']}", ln=True)
     pdf.ln(4)
 
-    pdf.set_font("DejaVu", "I", 9)
+    pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(
         0, 5,
         "This report is for educational and metabolic recovery guidance only and does not "
