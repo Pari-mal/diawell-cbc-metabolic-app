@@ -16,7 +16,8 @@ class ReportPDF(FPDF):
 
     def footer(self):
         # Page number at bottom
-        self.set_y(-15)
+        self_set_y = -15
+        self.set_y(self_set_y)
         self.set_font("DejaVu", "", 9)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
@@ -375,7 +376,9 @@ def build_pdf(patient, blocks):
         "replace clinical judgment or diagnostic workup. Please correlate with full clinical context."
     )
 
-    return pdf.output(dest="S") 
+    # IMPORTANT: return pure bytes for Streamlit
+    pdf_bytes = pdf.output(dest="S")
+    return bytes(pdf_bytes)
 
 # ----------------------------------------------------
 #   STREAMLIT APP
