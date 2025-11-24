@@ -375,7 +375,7 @@ def build_pdf(patient, blocks):
         "replace clinical judgment or diagnostic workup. Please correlate with full clinical context."
     )
 
-    return pdf.output(dest="S").encode("latin-1")
+    return pdf.output(dest="S") 
 
 # ----------------------------------------------------
 #   STREAMLIT APP
