@@ -16,8 +16,7 @@ class ReportPDF(FPDF):
 
     def footer(self):
         # Page number at bottom
-        self_set_y = -15
-        self.set_y(self_set_y)
+        self.set_y(-15)
         self.set_font("DejaVu", "", 9)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
@@ -33,13 +32,36 @@ def init_pdf():
     return pdf
 
 # ----------------------------------------------------
-#   CORE INDEX CALCULATIONS (from Excel logic)
+#   HELPERS
 # ----------------------------------------------------
 
 def safe_div(a, b):
     if b is None or b == 0:
         return None
     return a / b
+
+def severity_label(s):
+    """Convert 0–3 numeric severity to text label."""
+    if s is None:
+        return "NA"
+    labels = ["Normal", "Mild ↑", "Moderate ↑", "Severe ↑"]
+    if 0 <= s < len(labels):
+        return labels[s]
+    return "NA"
+
+def domain_label(score):
+    """Label 0–25 domain score into Normal/Mild/Moderate/Severe."""
+    if score < 6:
+        return "Normal"
+    if score < 12:
+        return "Mild"
+    if score < 18:
+        return "Moderate"
+    return "Severe"
+
+# ----------------------------------------------------
+#   CORE INDEX CALCULATIONS (from Excel logic)
+# ----------------------------------------------------
 
 def calc_inflammation_block(neut, lymph, mono, plate):
     """
@@ -347,36 +369,64 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, f"Risk Category: {blocks['risk_label']}", ln=True)
     pdf.ln(4)
 
-    # Domain scores
+    # Domain scores + text labels
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, "Domain Scores (0–25 each)", ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.cell(0, 8, f"Inflammation: {blocks['inflam_score']:.1f}", ln=True)
-    pdf.cell(0, 8, f"Oxidative / Hb–MCV: {blocks['oxid_score']:.1f}", ln=True)
-    pdf.cell(0, 8, f"Endothelial: {blocks['endo_score']:.1f}", ln=True)
-    pdf.cell(0, 8, f"Metabolic / IR / Liver: {blocks['metab_score']:.1f}", ln=True)
+    pdf.cell(0, 8, f"Inflammation: {blocks['inflam_score']:.1f} ({blocks['inflam_label']})", ln=True)
+    pdf.cell(0, 8, f"Oxidative / Hb–MCV: {blocks['oxid_score']:.1f} ({blocks['oxid_label']})", ln=True)
+    pdf.cell(0, 8, f"Endothelial: {blocks['endo_score']:.1f} ({blocks['endo_label']})", ln=True)
+    pdf.cell(0, 8, f"Metabolic / IR / Liver: {blocks['metab_score']:.1f} ({blocks['metab_label']})", ln=True)
     pdf.ln(4)
 
-    # Key indices (brief)
+    # Key indices (with severity)
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Key Indices", ln=True)
+    pdf.cell(0, 8, "Key Indices (with severity)", ln=True)
     pdf.set_font("DejaVu", "", 11)
 
-    pdf.cell(0, 7, f"NLR: {blocks['nlr_text']}", ln=True)
-    pdf.cell(0, 7, f"PLR: {blocks['plr_text']}", ln=True)
-    pdf.cell(0, 7, f"TyG: {blocks['tyg_text']}", ln=True)
-    pdf.cell(0, 7, f"METS-IR: {blocks['mets_ir_text']}", ln=True)
-    pdf.cell(0, 7, f"eGDR: {blocks['egdr_text']}", ln=True)
+    # Inflammation block
+    pdf.cell(0, 7, f"NLR: {blocks['nlr_text']} ({blocks['nlr_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"PLR: {blocks['plr_text']} ({blocks['plr_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"SII: {blocks['sii_text']} ({blocks['sii_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"SIRI: {blocks['siri_text']} ({blocks['siri_sev_label']})", ln=True)
+    pdf.ln(2)
+
+    # Metabolic / liver block
+    pdf.cell(0, 7, f"TyG: {blocks['tyg_text']} ({blocks['tyg_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"METS-IR: {blocks['mets_ir_text']} ({blocks['mets_ir_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"AIP: {blocks['aip_text']} ({blocks['aip_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"HSI: {blocks['hsi_text']} ({blocks['hsi_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"FIB-4: {blocks['fib4_text']} ({blocks['fib4_sev_label']})", ln=True)
+    pdf.cell(0, 7, f"eGDR: {blocks['egdr_text']} ({blocks['egdr_sev_label']})", ln=True)
     pdf.ln(4)
 
+    # Disclaimer
     pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(
         0, 5,
         "This report is for educational and metabolic recovery guidance only and does not "
         "replace clinical judgment or diagnostic workup. Please correlate with full clinical context."
     )
+    pdf.ln(3)
 
-    # IMPORTANT: return pure bytes for Streamlit
+    # Abbreviation legend with full forms
+    pdf.set_font("DejaVu", "B", 10)
+    pdf.cell(0, 6, "Abbreviation Legend", ln=True)
+    pdf.set_font("DejaVu", "", 9)
+    pdf.multi_cell(
+        0, 5,
+        "NLR = Neutrophil-to-Lymphocyte Ratio; "
+        "PLR = Platelet-to-Lymphocyte Ratio; "
+        "SII = Systemic Immune-Inflammation Index; "
+        "SIRI = Systemic Inflammation Response Index; "
+        "AIP = Atherogenic Index of Plasma; "
+        "HSI = Hepatic Steatosis Index; "
+        "FIB-4 = Fibrosis-4 Index; "
+        "TyG = Triglyceride-Glucose Index; "
+        "METS-IR = Metabolic Score for Insulin Resistance; "
+        "eGDR = Estimated Glucose Disposal Rate."
+    )
+
     pdf_bytes = pdf.output(dest="S")
     return bytes(pdf_bytes)
 
@@ -462,39 +512,74 @@ def main():
         total_score = infl["inflam_score"] + oxid["oxid_score"] + endo["endo_score"] + metab["metab_score"]
         label = overall_risk_label(total_score)
 
+        # Domain labels
+        inflam_label = domain_label(infl["inflam_score"])
+        oxid_label   = domain_label(oxid["oxid_score"])
+        endo_label   = domain_label(endo["endo_score"])
+        metab_label  = domain_label(metab["metab_score"])
+
         # ---- Display on screen ----
         st.subheader("4. Domain Scores")
         d1, d2 = st.columns(2)
         with d1:
-            st.write(f"Inflammation score: **{infl['inflam_score']:.1f} / 25**")
-            st.write(f"Oxidative / Hb–MCV score: **{oxid['oxid_score']:.1f} / 25**")
+            st.write(f"Inflammation score: **{infl['inflam_score']:.1f} / 25** ({inflam_label})")
+            st.write(f"Oxidative / Hb–MCV score: **{oxid['oxid_score']:.1f} / 25** ({oxid_label})")
         with d2:
-            st.write(f"Endothelial score: **{endo['endo_score']:.1f} / 25**")
-            st.write(f"Metabolic / IR / Liver score: **{metab['metab_score']:.1f} / 25**")
+            st.write(f"Endothelial score: **{endo['endo_score']:.1f} / 25** ({endo_label})")
+            st.write(f"Metabolic / IR / Liver score: **{metab['metab_score']:.1f} / 25** ({metab_label})")
 
         st.subheader("5. Overall Score")
         st.write(f"Total CBC + Biochem Metabolic Health Score: **{total_score:.1f} / 100**")
         st.write(f"Overall interpretation: **{label}**")
 
-        # Key indices preview
+        # Key indices preview with severity
         st.markdown("---")
         st.subheader("6. Key Indices (summary)")
         cA, cB = st.columns(2)
         with cA:
             st.markdown("**Inflammation (CBC)**")
-            st.write(f"NLR: {infl['nlr']:.2f}" if infl['nlr'] is not None else "NLR: NA")
-            st.write(f"PLR: {infl['plr']:.1f}" if infl['plr'] is not None else "PLR: NA")
-            st.write(f"SII: {infl['sii']:.1f}" if infl['sii'] is not None else "SII: NA")
-            st.write(f"SIRI: {infl['siri']:.2f}" if infl['siri'] is not None else "SIRI: NA")
+            st.write(
+                f"NLR: {infl['nlr']:.2f} ({severity_label(infl['s_nlr'])})"
+                if infl['nlr'] is not None else "NLR: NA"
+            )
+            st.write(
+                f"PLR: {infl['plr']:.1f} ({severity_label(infl['s_plr'])})"
+                if infl['plr'] is not None else "PLR: NA"
+            )
+            st.write(
+                f"SII: {infl['sii']:.1f} ({severity_label(infl['s_sii'])})"
+                if infl['sii'] is not None else "SII: NA"
+            )
+            st.write(
+                f"SIRI: {infl['siri']:.2f} ({severity_label(infl['s_siri'])})"
+                if infl['siri'] is not None else "SIRI: NA"
+            )
 
         with cB:
             st.markdown("**Metabolic / IR / Liver**")
-            st.write(f"TyG: {metab['tyg']:.2f}" if metab['tyg'] is not None else "TyG: NA")
-            st.write(f"METS-IR: {metab['mets_ir']:.2f}" if metab['mets_ir'] is not None else "METS-IR: NA")
-            st.write(f"AIP: {metab['aip']:.3f}" if metab['aip'] is not None else "AIP: NA")
-            st.write(f"HSI: {metab['hsi']:.1f}" if metab['hsi'] is not None else "HSI: NA")
-            st.write(f"FIB-4: {metab['fib4']:.2f}" if metab['fib4'] is not None else "FIB-4: NA")
-            st.write(f"eGDR: {metab['egdr']:.2f} mg/kg/min")
+            st.write(
+                f"TyG: {metab['tyg']:.2f} ({severity_label(metab['s_tyg'])})"
+                if metab['tyg'] is not None else "TyG: NA"
+            )
+            st.write(
+                f"METS-IR: {metab['mets_ir']:.2f} ({severity_label(metab['s_mets'])})"
+                if metab['mets_ir'] is not None else "METS-IR: NA"
+            )
+            st.write(
+                f"AIP: {metab['aip']:.3f} ({severity_label(metab['s_aip'])})"
+                if metab['aip'] is not None else "AIP: NA"
+            )
+            st.write(
+                f"HSI: {metab['hsi']:.1f} ({severity_label(metab['s_hsi'])})"
+                if metab['hsi'] is not None else "HSI: NA"
+            )
+            st.write(
+                f"FIB-4: {metab['fib4']:.2f} ({severity_label(metab['s_fib4'])})"
+                if metab['fib4'] is not None else "FIB-4: NA"
+            )
+            st.write(
+                f"eGDR: {metab['egdr']:.2f} mg/kg/min ({severity_label(metab['s_egdr'])})"
+            )
 
         # ---- Prepare for PDF ----
         today_str = datetime.date.today().strftime("%d-%m-%Y")
@@ -511,13 +596,38 @@ def main():
             "oxid_score": oxid["oxid_score"],
             "endo_score": endo["endo_score"],
             "metab_score": metab["metab_score"],
+            "inflam_label": inflam_label,
+            "oxid_label": oxid_label,
+            "endo_label": endo_label,
+            "metab_label": metab_label,
             "total_score": total_score,
             "risk_label": label,
+
+            # Numeric text for PDF
             "nlr_text": f"{infl['nlr']:.2f}" if infl["nlr"] is not None else "NA",
             "plr_text": f"{infl['plr']:.1f}" if infl["plr"] is not None else "NA",
+            "sii_text": f"{infl['sii']:.1f}" if infl["sii"] is not None else "NA",
+            "siri_text": f"{infl['siri']:.2f}" if infl["siri"] is not None else "NA",
+
             "tyg_text": f"{metab['tyg']:.2f}" if metab["tyg"] is not None else "NA",
             "mets_ir_text": f"{metab['mets_ir']:.2f}" if metab["mets_ir"] is not None else "NA",
+            "aip_text": f"{metab['aip']:.3f}" if metab["aip"] is not None else "NA",
+            "hsi_text": f"{metab['hsi']:.1f}" if metab["hsi"] is not None else "NA",
+            "fib4_text": f"{metab['fib4']:.2f}" if metab["fib4"] is not None else "NA",
             "egdr_text": f"{metab['egdr']:.2f} mg/kg/min" if metab["egdr"] is not None else "NA",
+
+            # Severity labels for PDF
+            "nlr_sev_label": severity_label(infl["s_nlr"]),
+            "plr_sev_label": severity_label(infl["s_plr"]),
+            "sii_sev_label": severity_label(infl["s_sii"]),
+            "siri_sev_label": severity_label(infl["s_siri"]),
+
+            "tyg_sev_label": severity_label(metab["s_tyg"]),
+            "mets_ir_sev_label": severity_label(metab["s_mets"]),
+            "aip_sev_label": severity_label(metab["s_aip"]),
+            "hsi_sev_label": severity_label(metab["s_hsi"]),
+            "fib4_sev_label": severity_label(metab["s_fib4"]),
+            "egdr_sev_label": severity_label(metab["s_egdr"]),
         }
 
         pdf_bytes = build_pdf(patient, blocks)
