@@ -41,12 +41,32 @@ def safe_div(a, b):
     return a / b
 
 def severity_label(s):
-    """Convert 0–3 numeric severity to text label."""
+    """Convert 0–3 numeric severity to text label for '↑' type indices."""
     if s is None:
         return "NA"
     labels = ["Normal", "Mild ↑", "Moderate ↑", "Severe ↑"]
     if 0 <= s < len(labels):
         return labels[s]
+    return "NA"
+
+def severity_label_egdr(s):
+    """
+    Special label for eGDR (lower is worse, so down arrows).
+    0 = Normal (good)
+    1 = Mild ↓
+    2 = Moderate ↓↓
+    3 = Severe ↓↓↓
+    """
+    if s is None:
+        return "NA"
+    if s == 0:
+        return "Normal"
+    if s == 1:
+        return "Mild ↓"
+    if s == 2:
+        return "Moderate ↓↓"
+    if s == 3:
+        return "Severe ↓↓↓"
     return "NA"
 
 def domain_label(score):
@@ -60,7 +80,7 @@ def domain_label(score):
     return "Severe"
 
 # ----------------------------------------------------
-#   CORE INDEX CALCULATIONS (from Excel logic)
+#   CORE INDEX CALCULATIONS
 # ----------------------------------------------------
 
 def calc_inflammation_block(neut, lymph, mono, plate):
@@ -75,7 +95,7 @@ def calc_inflammation_block(neut, lymph, mono, plate):
     siri = safe_div(neut * mono, lymph) if lymph else None
     aisi = neut * lymph * mono if all(x is not None for x in [neut, lymph, mono]) else None
 
-    # Severities per your Excel cut-offs
+    # Severities per cut-offs
     def sev_nlr(x):
         if x is None: return None
         if x <= 2: return 0
@@ -131,13 +151,13 @@ def calc_oxidative_block(rdw, plate, albumin, hb, mcv):
     """
     RDW, RPR, RAR, Hb/RDW, MCV/Hb, HPR + severities + domain score
     """
-    rpr = safe_div(rdw, plate)
-    rar = safe_div(rdw, albumin)
+    rpr   = safe_div(rdw, plate)
+    rar   = safe_div(rdw, albumin)
     hbrdw = safe_div(hb, rdw)
     mcvhb = safe_div(mcv, hb)
-    hpr = safe_div(hb, plate)
+    hpr   = safe_div(hb, plate)
 
-    # Severities per Excel cut-offs
+    # Severities
     def sev_rdw(x):
         if x is None: return None
         if x < 13: return 0
@@ -162,8 +182,8 @@ def calc_oxidative_block(rdw, plate, albumin, hb, mcv):
     def sev_hbrdw(x):
         if x is None: return None
         if x >= 1.35: return 0
-        if x >= 1.2: return 1
-        if x >= 1.0: return 2
+        if x >= 1.2:  return 1
+        if x >= 1.0:  return 2
         return 3
 
     def sev_mcvhb(x):
@@ -332,12 +352,23 @@ def calc_metabolic_block(
         "metab_sev": metab_sev, "metab_score": metab_score
     }
 
+# ----------------------------------------------------
+#   OVERALL RISK LABEL (NEW THRESHOLDS)
+# ----------------------------------------------------
+
 def overall_risk_label(total_score):
+    """
+    New thresholds:
+    0–24  -> Low risk
+    25–39 -> Mild risk
+    40–59 -> Moderate risk
+    ≥60   -> High risk
+    """
     if total_score < 25:
         return "Low risk"
-    if total_score < 50:
+    if total_score < 40:
         return "Mild risk"
-    if total_score < 75:
+    if total_score < 60:
         return "Moderate risk"
     return "High risk – intensive optimization needed"
 
@@ -578,7 +609,7 @@ def main():
                 if metab['fib4'] is not None else "FIB-4: NA"
             )
             st.write(
-                f"eGDR: {metab['egdr']:.2f} mg/kg/min ({severity_label(metab['s_egdr'])})"
+                f"eGDR: {metab['egdr']:.2f} mg/kg/min ({severity_label_egdr(metab['s_egdr'])})"
             )
 
         # ---- Prepare for PDF ----
@@ -604,30 +635,30 @@ def main():
             "risk_label": label,
 
             # Numeric text for PDF
-            "nlr_text": f"{infl['nlr']:.2f}" if infl["nlr"] is not None else "NA",
-            "plr_text": f"{infl['plr']:.1f}" if infl["plr"] is not None else "NA",
-            "sii_text": f"{infl['sii']:.1f}" if infl["sii"] is not None else "NA",
+            "nlr_text":  f"{infl['nlr']:.2f}"  if infl["nlr"]  is not None else "NA",
+            "plr_text":  f"{infl['plr']:.1f}"  if infl["plr"]  is not None else "NA",
+            "sii_text":  f"{infl['sii']:.1f}"  if infl["sii"]  is not None else "NA",
             "siri_text": f"{infl['siri']:.2f}" if infl["siri"] is not None else "NA",
 
-            "tyg_text": f"{metab['tyg']:.2f}" if metab["tyg"] is not None else "NA",
+            "tyg_text":   f"{metab['tyg']:.2f}"    if metab["tyg"]    is not None else "NA",
             "mets_ir_text": f"{metab['mets_ir']:.2f}" if metab["mets_ir"] is not None else "NA",
-            "aip_text": f"{metab['aip']:.3f}" if metab["aip"] is not None else "NA",
-            "hsi_text": f"{metab['hsi']:.1f}" if metab["hsi"] is not None else "NA",
-            "fib4_text": f"{metab['fib4']:.2f}" if metab["fib4"] is not None else "NA",
-            "egdr_text": f"{metab['egdr']:.2f} mg/kg/min" if metab["egdr"] is not None else "NA",
+            "aip_text":   f"{metab['aip']:.3f}"   if metab["aip"]   is not None else "NA",
+            "hsi_text":   f"{metab['hsi']:.1f}"   if metab["hsi"]   is not None else "NA",
+            "fib4_text":  f"{metab['fib4']:.2f}"  if metab["fib4"]  is not None else "NA",
+            "egdr_text":  f"{metab['egdr']:.2f} mg/kg/min" if metab["egdr"] is not None else "NA",
 
             # Severity labels for PDF
-            "nlr_sev_label": severity_label(infl["s_nlr"]),
-            "plr_sev_label": severity_label(infl["s_plr"]),
-            "sii_sev_label": severity_label(infl["s_sii"]),
+            "nlr_sev_label":  severity_label(infl["s_nlr"]),
+            "plr_sev_label":  severity_label(infl["s_plr"]),
+            "sii_sev_label":  severity_label(infl["s_sii"]),
             "siri_sev_label": severity_label(infl["s_siri"]),
 
-            "tyg_sev_label": severity_label(metab["s_tyg"]),
+            "tyg_sev_label":    severity_label(metab["s_tyg"]),
             "mets_ir_sev_label": severity_label(metab["s_mets"]),
-            "aip_sev_label": severity_label(metab["s_aip"]),
-            "hsi_sev_label": severity_label(metab["s_hsi"]),
-            "fib4_sev_label": severity_label(metab["s_fib4"]),
-            "egdr_sev_label": severity_label(metab["s_egdr"]),
+            "aip_sev_label":    severity_label(metab["s_aip"]),
+            "hsi_sev_label":    severity_label(metab["s_hsi"]),
+            "fib4_sev_label":   severity_label(metab["s_fib4"]),
+            "egdr_sev_label":   severity_label_egdr(metab["s_egdr"]),
         }
 
         pdf_bytes = build_pdf(patient, blocks)
