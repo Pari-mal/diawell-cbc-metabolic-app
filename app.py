@@ -11,8 +11,13 @@ class ReportPDF(FPDF):
     def header(self):
         # Title at top of each page
         self.set_font("DejaVu", "B", 14)
-        self.cell(0, 10, "DiaWell C.O.R.E. Foundation - CBC + Biochemistry Metabolic Health Report",
-                  ln=True, align="C")
+        self.cell(
+            0,
+            10,
+            "DiaWell C.O.R.E. Foundation - CBC + Biochemistry Metabolic Health Report",
+            ln=True,
+            align="C",
+        )
         self.ln(2)
 
     def footer(self):
@@ -46,7 +51,7 @@ def safe_div(a, b):
 
 def severity_to_text(sev, direction="up"):
     """
-    Map severity 0–3 to textual label with arrows.
+    Map severity 0-3 to textual label with arrows.
     direction 'up' = worse with higher value,
     direction 'down' = worse with lower value (e.g., eGDR).
     """
@@ -55,23 +60,23 @@ def severity_to_text(sev, direction="up"):
     if direction == "down":
         mapping = {
             0: "Normal",
-            1: "Mild ↓",
-            2: "Moderate ↓",
-            3: "Severe ↓",
+            1: "Mild \u2193",
+            2: "Moderate \u2193",
+            3: "Severe \u2193",
         }
     else:
         mapping = {
             0: "Normal",
-            1: "Mild ↑",
-            2: "Moderate ↑",
-            3: "Severe ↑",
+            1: "Mild \u2191",
+            2: "Moderate \u2191",
+            3: "Severe \u2191",
         }
     return mapping.get(sev, "NA")
 
 
 def domain_label(score):
     """
-    Convert 0–25 domain score to a qualitative label.
+    Convert 0-25 domain score to a qualitative label.
     """
     if score < 6:
         return "Near optimal"
@@ -84,7 +89,7 @@ def domain_label(score):
 
 def overall_risk_label(total_score):
     """
-    0–100 total score → overall risk category.
+    0-100 total score -> overall risk category.
     """
     if total_score < 25:
         return "Low risk"
@@ -92,7 +97,7 @@ def overall_risk_label(total_score):
         return "Mild risk"
     if total_score < 60:
         return "Moderate risk"
-    return "High risk – intensive optimization needed"
+    return "High risk - intensive optimization needed"
 
 
 # ----------------------------------------------------
@@ -111,40 +116,60 @@ def calc_inflammation_block(neut, lymph, mono, plate):
     siri = safe_div(neut * mono, lymph) if lymph else None
     aisi = neut * lymph * mono if all(x is not None for x in [neut, lymph, mono]) else None
 
-    # ---- Severity cutoffs (0–3) ----
+    # ---- Severity cutoffs (0-3) ----
     def sev_nlr(x):
-        if x is None: return None
-        if x <= 2.0: return 0
-        if x <= 3.0: return 1
-        if x <= 5.0: return 2
+        if x is None:
+            return None
+        if x <= 2.0:
+            return 0
+        if x <= 3.0:
+            return 1
+        if x <= 5.0:
+            return 2
         return 3
 
     def sev_plr(x):
-        if x is None: return None
-        if x < 120: return 0
-        if x < 150: return 1
-        if x < 200: return 2
+        if x is None:
+            return None
+        if x < 120:
+            return 0
+        if x < 150:
+            return 1
+        if x < 200:
+            return 2
         return 3
 
     def sev_sii(x):
-        if x is None: return None
-        if x < 300: return 0
-        if x < 600: return 1
-        if x < 900: return 2
+        if x is None:
+            return None
+        if x < 300:
+            return 0
+        if x < 600:
+            return 1
+        if x < 900:
+            return 2
         return 3
 
     def sev_siri(x):
-        if x is None: return None
-        if x < 0.8: return 0
-        if x < 1.5: return 1
-        if x < 2.5: return 2
+        if x is None:
+            return None
+        if x < 0.8:
+            return 0
+        if x < 1.5:
+            return 1
+        if x < 2.5:
+            return 2
         return 3
 
     def sev_aisi(x):
-        if x is None: return None
-        if x < 150: return 0
-        if x < 300: return 1
-        if x < 600: return 2
+        if x is None:
+            return None
+        if x < 150:
+            return 0
+        if x < 300:
+            return 1
+        if x < 600:
+            return 2
         return 3
 
     s_nlr = sev_nlr(nlr)
@@ -175,7 +200,7 @@ def calc_inflammation_block(neut, lymph, mono, plate):
 
 def calc_oxidative_block(rdw, plate, albumin, hb, mcv):
     """
-    Oxidative stress / Hb–MCV / energy:
+    Oxidative stress / Hb-MCV / energy:
     RDW, RPR, RAR, Hb/RDW, MCV/Hb, HPR + severities + domain score.
     """
     rpr = safe_div(rdw, plate)
@@ -186,50 +211,74 @@ def calc_oxidative_block(rdw, plate, albumin, hb, mcv):
 
     # RDW (%)
     def sev_rdw(x):
-        if x is None: return None
-        if x < 13.0: return 0
-        if x < 14.0: return 1
-        if x < 15.0: return 2
+        if x is None:
+            return None
+        if x < 13.0:
+            return 0
+        if x < 14.0:
+            return 1
+        if x < 15.0:
+            return 2
         return 3
 
     # RDW/Platelet
     def sev_rpr(x):
-        if x is None: return None
-        if x < 0.07: return 0
-        if x < 0.10: return 1
-        if x < 0.15: return 2
+        if x is None:
+            return None
+        if x < 0.07:
+            return 0
+        if x < 0.10:
+            return 1
+        if x < 0.15:
+            return 2
         return 3
 
     # RDW/Albumin
     def sev_rar(x):
-        if x is None: return None
-        if x < 3.0: return 0
-        if x < 4.0: return 1
-        if x < 5.0: return 2
+        if x is None:
+            return None
+        if x < 3.0:
+            return 0
+        if x < 4.0:
+            return 1
+        if x < 5.0:
+            return 2
         return 3
 
     # Hb/RDW – fatigue / energy stress
     def sev_hbrdw(x):
-        if x is None: return None
-        if x >= 1.35: return 0
-        if x >= 1.20: return 1
-        if x >= 1.00: return 2
+        if x is None:
+            return None
+        if x >= 1.35:
+            return 0
+        if x >= 1.20:
+            return 1
+        if x >= 1.00:
+            return 2
         return 3
 
     # MCV/Hb – macrocytic tendency
     def sev_mcvhb(x):
-        if x is None: return None
-        if x < 7.0: return 0
-        if x < 8.0: return 1
-        if x < 9.0: return 2
+        if x is None:
+            return None
+        if x < 7.0:
+            return 0
+        if x < 8.0:
+            return 1
+        if x < 9.0:
+            return 2
         return 3
 
     # Hb/Platelet
     def sev_hpr(x):
-        if x is None: return None
-        if x < 0.07: return 0
-        if x < 0.09: return 1
-        if x < 0.12: return 2
+        if x is None:
+            return None
+        if x < 0.07:
+            return 0
+        if x < 0.09:
+            return 1
+        if x < 0.12:
+            return 2
         return 3
 
     s_rdw = sev_rdw(rdw)
@@ -270,17 +319,25 @@ def calc_endothelial_block(mono, neut, hdl):
     nhr = safe_div(neut, hdl)
 
     def sev_mhr(x):
-        if x is None: return None
-        if x < 0.010: return 0
-        if x < 0.020: return 1
-        if x < 0.030: return 2
+        if x is None:
+            return None
+        if x < 0.010:
+            return 0
+        if x < 0.020:
+            return 1
+        if x < 0.030:
+            return 2
         return 3
 
     def sev_nhr(x):
-        if x is None: return None
-        if x < 0.10: return 0
-        if x < 0.20: return 1
-        if x < 0.30: return 2
+        if x is None:
+            return None
+        if x < 0.10:
+            return 0
+        if x < 0.20:
+            return 1
+        if x < 0.30:
+            return 2
         return 3
 
     s_mhr = sev_mhr(mhr)
@@ -318,7 +375,7 @@ def calc_metabolic_block(
     if glu > 0 and tg > 0 and hdl > 0 and bmi > 0:
         mets_ir = math.log(2 * glu + tg) * bmi / math.log(hdl)
 
-    # AIP – mmol/L version: convert from mg/dL to mmol/L
+    # AIP - mmol/L version: convert from mg/dL to mmol/L
     aip = None
     if tg > 0 and hdl > 0:
         tg_mmol = tg / 88.5
@@ -340,55 +397,76 @@ def calc_metabolic_block(
     if plate > 0 and alt > 0:
         fib4 = (age * ast) / (plate * math.sqrt(alt))
 
-    # eGDR = 21.158 − 0.09*Waist − 3.407*HTN − 0.551*HbA1c
+    # eGDR = 21.158 - 0.09*Waist - 3.407*HTN - 0.551*HbA1c
     egdr = 21.158 - 0.09 * waist - 3.407 * (1 if htn else 0) - 0.551 * hba1c
 
     # ---- Severities ----
 
     def sev_tyg(x):
-        if x is None: return None
-        if x < 8.5: return 0
-        if x < 8.9: return 1
-        if x < 9.5: return 2
+        if x is None:
+            return None
+        if x < 8.5:
+            return 0
+        if x < 8.9:
+            return 1
+        if x < 9.5:
+            return 2
         return 3
 
     def sev_mets(x):
-        if x is None: return None
-        if x < 35: return 0
-        if x < 40: return 1
-        if x < 45: return 2
+        if x is None:
+            return None
+        if x < 35:
+            return 0
+        if x < 40:
+            return 1
+        if x < 45:
+            return 2
         return 3
 
     # AIP mmol/L thresholds:
-    # <0.11 low, 0.11–0.21 intermediate, >0.21 high
+    # <0.11 low, 0.11-0.21 intermediate, >0.21 high
     def sev_aip(x):
-        if x is None: return None
+        if x is None:
+            return None
         if x < 0.11:  # low risk
             return 0
         if x <= 0.21:  # intermediate
             return 1
-        return 3  # high – counted as severe
+        return 3  # high - counted as severe
 
     def sev_hsi(x):
-        if x is None: return None
-        if x < 30: return 0
-        if x < 35: return 1
-        if x < 40: return 2
+        if x is None:
+            return None
+        if x < 30:
+            return 0
+        if x < 35:
+            return 1
+        if x < 40:
+            return 2
         return 3
 
     def sev_fib4(x):
-        if x is None: return None
-        if x < 1.3: return 0
-        if x < 2.0: return 1
-        if x < 2.67: return 2
+        if x is None:
+            return None
+        if x < 1.3:
+            return 0
+        if x < 2.0:
+            return 1
+        if x < 2.67:
+            return 2
         return 3
 
     # Higher eGDR is better; lower is worse
     def sev_egdr(x):
-        if x is None: return None
-        if x > 8.0: return 0
-        if x > 6.0: return 1
-        if x > 4.0: return 2
+        if x is None:
+            return None
+        if x > 8.0:
+            return 0
+        if x > 6.0:
+            return 1
+        if x > 4.0:
+            return 2
         return 3
 
     s_tyg = sev_tyg(tyg)
@@ -444,26 +522,47 @@ def build_pdf(patient, blocks):
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, "Overall Summary", ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.cell(0, 8, f"Total Score (0–100): {blocks['total_score']:.1f}", ln=True)
+    pdf.cell(0, 8, f"Total Score (0-100): {blocks['total_score']:.1f}", ln=True)
     pdf.cell(0, 8, f"Risk Category: {blocks['risk_label']}", ln=True)
     pdf.ln(4)
 
     # Domain scores
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Domain Scores (0–25 each)", ln=True)
+    pdf.cell(0, 8, "Domain Scores (0-25 each)", ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.cell(0, 8, f"Inflammation: {blocks['inflam_score']:.1f} / 25 ({blocks['inflam_label']})", ln=True)
-    pdf.cell(0, 8, f"Oxidative / Hb–MCV: {blocks['oxid_score']:.1f} / 25 ({blocks['oxid_label']})", ln=True)
-    pdf.cell(0, 8, f"Endothelial: {blocks['endo_score']:.1f} / 25 ({blocks['endo_label']})", ln=True)
-    pdf.cell(0, 8, f"Metabolic / IR / Liver: {blocks['metab_score']:.1f} / 25 ({blocks['metab_label']})", ln=True)
+    pdf.cell(
+        0,
+        8,
+        f"Inflammation: {blocks['inflam_score']:.1f} / 25 ({blocks['inflam_label']})",
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        8,
+        f"Oxidative / Hb-MCV: {blocks['oxid_score']:.1f} / 25 ({blocks['oxid_label']})",
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        8,
+        f"Endothelial: {blocks['endo_score']:.1f} / 25 ({blocks['endo_label']})",
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        8,
+        f"Metabolic / IR / Liver: {blocks['metab_score']:.1f} / 25 ({blocks['metab_label']})",
+        ln=True,
+    )
     pdf.ln(4)
 
     # Domain-wise comments
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, "Domain-wise Interpretation", ln=True)
     pdf.set_font("DejaVu", "", 11)
+
     pdf.multi_cell(0, 6, f"Inflammation: {blocks['inflam_comment']}")
-    pdf.multi_cell(0, 6, f"Oxidative / Hb–MCV: {blocks['oxid_comment']}")
+    pdf.multi_cell(0, 6, f"Oxidative / Hb-MCV: {blocks['oxid_comment']}")
     pdf.multi_cell(0, 6, f"Endothelial: {blocks['endo_comment']}")
     pdf.multi_cell(0, 6, f"Metabolic / IR / Liver: {blocks['metab_comment']}")
     pdf.ln(4)
@@ -484,25 +583,25 @@ def build_pdf(patient, blocks):
     pdf.set_font("DejaVu", "", 10)
 
     full_forms = [
-        "NLR  – Neutrophil-to-Lymphocyte Ratio",
-        "PLR  – Platelet-to-Lymphocyte Ratio",
-        "SII  – Systemic Immune-Inflammation Index",
-        "SIRI – Systemic Inflammation Response Index",
-        "AISI – Aggregate Index of Systemic Inflammation",
-        "RDW  – Red Cell Distribution Width",
-        "RPR  – RDW-to-Platelet Ratio",
-        "RAR  – RDW-to-Albumin Ratio",
-        "Hb/RDW – Hemoglobin-to-RDW Ratio",
-        "MCV/Hb – Mean Corpuscular Volume-to-Hemoglobin Ratio",
-        "HPR – Hemoglobin-to-Platelet Ratio",
-        "MHR – Monocyte-to-HDL Ratio",
-        "NHR – Neutrophil-to-HDL Ratio",
-        "TyG – Triglyceride-Glucose Index",
-        "METS-IR – Metabolic Score for Insulin Resistance",
-        "AIP – Atherogenic Index of Plasma",
-        "HSI – Hepatic Steatosis Index",
-        "FIB-4 – Fibrosis-4 Index",
-        "eGDR – Estimated Glucose Disposal Rate",
+        "NLR  - Neutrophil-to-Lymphocyte Ratio",
+        "PLR  - Platelet-to-Lymphocyte Ratio",
+        "SII  - Systemic Immune-Inflammation Index",
+        "SIRI - Systemic Inflammation Response Index",
+        "AISI - Aggregate Index of Systemic Inflammation",
+        "RDW  - Red Cell Distribution Width",
+        "RPR  - RDW-to-Platelet Ratio",
+        "RAR  - RDW-to-Albumin Ratio",
+        "Hb/RDW - Hemoglobin-to-RDW Ratio",
+        "MCV/Hb - Mean Corpuscular Volume-to-Hemoglobin Ratio",
+        "HPR - Hemoglobin-to-Platelet Ratio",
+        "MHR - Monocyte-to-HDL Ratio",
+        "NHR - Neutrophil-to-HDL Ratio",
+        "TyG - Triglyceride-Glucose Index",
+        "METS-IR - Metabolic Score for Insulin Resistance",
+        "AIP - Atherogenic Index of Plasma",
+        "HSI - Hepatic Steatosis Index",
+        "FIB-4 - Fibrosis-4 Index",
+        "eGDR - Estimated Glucose Disposal Rate",
     ]
 
     for ff in full_forms:
@@ -513,8 +612,9 @@ def build_pdf(patient, blocks):
     pdf.multi_cell(
         0,
         5,
-        "Disclaimer: This report is for educational and metabolic recovery guidance only and does not "
-        "replace clinical judgment or diagnostic workup. Please correlate with the full clinical context."
+        "Disclaimer: This report is for educational and metabolic recovery guidance only and "
+        "does not replace clinical judgment or diagnostic workup. Please correlate with the "
+        "full clinical context.",
     )
 
     # Return PDF as bytes for Streamlit download_button
@@ -531,7 +631,7 @@ def main():
         layout="centered",
     )
 
-    st.title("DiaWell C.O.R.E. – CBC + Biochemistry Metabolic Health Dashboard")
+    st.title("DiaWell C.O.R.E. - CBC + Biochemistry Metabolic Health Dashboard")
 
     # ----------------- Patient Info -----------------
     st.header("1. Patient Information")
@@ -550,13 +650,13 @@ def main():
     st.header("2. CBC Inputs")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        neut = st.number_input("Neutrophils (x10⁹/L)", 0.0, 30.0, 5.0)
+        neut = st.number_input("Neutrophils (x10^9/L)", 0.0, 30.0, 5.0)
     with c2:
-        lymph = st.number_input("Lymphocytes (x10⁹/L)", 0.0, 30.0, 2.0)
+        lymph = st.number_input("Lymphocytes (x10^9/L)", 0.0, 30.0, 2.0)
     with c3:
-        mono = st.number_input("Monocytes (x10⁹/L)", 0.0, 5.0, 0.5)
+        mono = st.number_input("Monocytes (x10^9/L)", 0.0, 5.0, 0.5)
     with c4:
-        plate = st.number_input("Platelets (x10⁹/L)", 0.0, 1000.0, 200.0)
+        plate = st.number_input("Platelets (x10^9/L)", 0.0, 1000.0, 200.0)
 
     st.subheader("Hb / RDW / MCV")
     c5, c6, c7 = st.columns(3)
@@ -581,7 +681,7 @@ def main():
     with m3:
         alt = st.number_input("ALT (U/L)", 0.0, 500.0, 40.0)
         hba1c = st.number_input("HbA1c (%)", 0.0, 20.0, 6.0)
-        bmi = st.number_input("BMI (kg/m²)", 10.0, 60.0, 26.0)
+        bmi = st.number_input("BMI (kg/m^2)", 10.0, 60.0, 26.0)
 
     w1, w2 = st.columns(2)
     with w1:
@@ -608,41 +708,43 @@ def main():
         endo_label = domain_label(endo["endo_score"])
         metab_label = domain_label(metab["metab_score"])
 
-        # Domain comments (simple, but clinically meaningful)
-        inflam_comment = {
+        # Domain comments
+        inflam_comment_map = {
             "Near optimal": "No significant systemic inflammation on CBC-derived indices.",
             "Mild": "Mild elevation in inflammatory markers; consider lifestyle optimization and monitoring.",
-            "Moderate": "Moderate systemic inflammation; evaluate for chronic inflammatory/metabolic drivers.",
+            "Moderate": "Moderate systemic inflammation; evaluate for chronic inflammatory or metabolic drivers.",
             "Severe": "Marked systemic inflammation; consider detailed workup and aggressive risk modification.",
-        }[inflam_label]
-
-        oxid_comment = {
-            "Near optimal": "No major signal of oxidative/hematologic stress.",
+        }
+        oxid_comment_map = {
+            "Near optimal": "No major signal of oxidative or hematologic stress.",
             "Mild": "Mild signal of oxidative or hematologic stress; correlate with fatigue, B12/folate, and nutrition.",
-            "Moderate": "Moderate oxidative / energy stress; consider micronutrient and mitochondrial support.",
-            "Severe": "Severe hematologic/oxidative stress pattern; rule out deficiency, chronic disease, or marrow stress.",
-        }[oxid_label]
-
-        endo_comment = {
+            "Moderate": "Moderate oxidative or energy stress; consider micronutrient and mitochondrial support.",
+            "Severe": "Severe hematologic or oxidative stress pattern; rule out deficiency, chronic disease, or marrow stress.",
+        }
+        endo_comment_map = {
             "Near optimal": "Endothelial markers appear within healthy range.",
             "Mild": "Mild endothelial stress; consider vascular health strategies (BP, lipids, activity, diet).",
             "Moderate": "Moderate endothelial dysfunction; intensify vascular risk management.",
             "Severe": "Severe endothelial stress; evaluate for advanced atherosclerotic risk and organ damage.",
-        }[endo_label]
+        }
+        metab_comment_map = {
+            "Near optimal": "Metabolic, liver, and insulin-resistance markers are largely reassuring.",
+            "Mild": "Mild metabolic risk; reinforce diet, activity, weight management, and sleep.",
+            "Moderate": "Moderate metabolic and insulin-resistance burden; structured lifestyle and pharmacologic review advised.",
+            "Severe": "Severe metabolic risk; high priority for comprehensive diabetes, NAFLD, and cardiovascular risk management.",
+        }
 
-        metab_comment = {
-            "Near optimal": "Metabolic / liver / IR markers largely reassuring.",
-            "Mild": "Mild metabolic risk; reinforce diet, activity, and weight management.",
-            "Moderate": "Moderate metabolic and insulin resistance burden; structured lifestyle and pharmacologic review advised.",
-            "Severe": "Severe metabolic risk; high priority for comprehensive diabetes, NAFLD and CV risk management.",
-        }[metab_label]
+        inflam_comment = inflam_comment_map[inflam_label]
+        oxid_comment = oxid_comment_map[oxid_label]
+        endo_comment = endo_comment_map[endo_label]
+        metab_comment = metab_comment_map[metab_label]
 
         # ----------------- Display on screen -----------------
         st.subheader("4. Domain Scores")
         d1, d2 = st.columns(2)
         with d1:
             st.write(f"Inflammation score: **{infl['inflam_score']:.1f} / 25** ({inflam_label})")
-            st.write(f"Oxidative / Hb–MCV score: **{oxid['oxid_score']:.1f} / 25** ({oxid_label})")
+            st.write(f"Oxidative / Hb-MCV score: **{oxid['oxid_score']:.1f} / 25** ({oxid_label})")
         with d2:
             st.write(f"Endothelial score: **{endo['endo_score']:.1f} / 25** ({endo_label})")
             st.write(f"Metabolic / IR / Liver score: **{metab['metab_score']:.1f} / 25** ({metab_label})")
@@ -697,7 +799,10 @@ def main():
             else:
                 st.write("FIB-4: NA")
             if metab["egdr"] is not None:
-                st.write(f"eGDR: {metab['egdr']:.2f} mg/kg/min ({severity_to_text(metab['s_egdr'], direction='down')})")
+                st.write(
+                    f"eGDR: {metab['egdr']:.2f} mg/kg/min "
+                    f"({severity_to_text(metab['s_egdr'], direction='down')})"
+                )
             else:
                 st.write("eGDR: NA")
 
@@ -718,11 +823,17 @@ def main():
         if oxid["rdw"] is not None:
             key_indices.append(f"RDW: {oxid['rdw']:.1f}% ({severity_to_text(oxid['s_rdw'])})")
         if oxid["rpr"] is not None:
-            key_indices.append(f"RPR (RDW/Platelets): {oxid['rpr']:.3f} ({severity_to_text(oxid['s_rpr'])})")
+            key_indices.append(
+                f"RPR (RDW/Platelets): {oxid['rpr']:.3f} ({severity_to_text(oxid['s_rpr'])})"
+            )
         if oxid["rar"] is not None:
-            key_indices.append(f"RAR (RDW/Albumin): {oxid['rar']:.2f} ({severity_to_text(oxid['s_rar'])})")
+            key_indices.append(
+                f"RAR (RDW/Albumin): {oxid['rar']:.2f} ({severity_to_text(oxid['s_rar'])})"
+            )
         if oxid["hbrdw"] is not None:
-            key_indices.append(f"Hb/RDW: {oxid['hbrdw']:.2f} ({severity_to_text(oxid['s_hbrdw'])})")
+            key_indices.append(
+                f"Hb/RDW: {oxid['hbrdw']:.2f} ({severity_to_text(oxid['s_hbrdw'])})"
+            )
 
         # Endothelial
         if endo["mhr"] is not None:
@@ -734,16 +845,23 @@ def main():
         if metab["tyg"] is not None:
             key_indices.append(f"TyG: {metab['tyg']:.2f} ({severity_to_text(metab['s_tyg'])})")
         if metab["mets_ir"] is not None:
-            key_indices.append(f"METS-IR: {metab['mets_ir']:.2f} ({severity_to_text(metab['s_mets'])})")
+            key_indices.append(
+                f"METS-IR: {metab['mets_ir']:.2f} ({severity_to_text(metab['s_mets'])})"
+            )
         if metab["aip"] is not None:
-            key_indices.append(f"AIP (mmol/L): {metab['aip']:.3f} ({severity_to_text(metab['s_aip'])})")
+            key_indices.append(
+                f"AIP (mmol/L): {metab['aip']:.3f} ({severity_to_text(metab['s_aip'])})"
+            )
         if metab["hsi"] is not None:
             key_indices.append(f"HSI: {metab['hsi']:.1f} ({severity_to_text(metab['s_hsi'])})")
         if metab["fib4"] is not None:
-            key_indices.append(f"FIB-4: {metab['fib4']:.2f} ({severity_to_text(metab['s_fib4'])})")
+            key_indices.append(
+                f"FIB-4: {metab['fib4']:.2f} ({severity_to_text(metab['s_fib4'])})"
+            )
         if metab["egdr"] is not None:
             key_indices.append(
-                f"eGDR: {metab['egdr']:.2f} mg/kg/min ({severity_to_text(metab['s_egdr'], direction='down')})"
+                f"eGDR: {metab['egdr']:.2f} mg/kg/min "
+                f"({severity_to_text(metab['s_egdr'], direction='down')})"
             )
 
         # ----------------- Prepare structures for PDF -----------------
