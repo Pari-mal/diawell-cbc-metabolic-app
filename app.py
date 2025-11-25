@@ -587,10 +587,11 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, pdf_safe("Domain-wise Interpretation"), ln=True)
     pdf.set_font("DejaVu", "", 11)
 
-    pdf.multi_cell(0, 6, pdf_safe(f"Inflammation: {blocks['inflam_comment']}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Endothelial: {blocks['endo_comment']}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"))
+    # NOTE: use fixed width (180) instead of 0 to avoid FPDFException
+    pdf.multi_cell(180, 6, pdf_safe(f"Inflammation: {blocks['inflam_comment']}"))
+    pdf.multi_cell(180, 6, pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"))
+    pdf.multi_cell(180, 6, pdf_safe(f"Endothelial: {blocks['endo_comment']}"))
+    pdf.multi_cell(180, 6, pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"))
     pdf.ln(4)
 
     # Key indices
@@ -635,8 +636,9 @@ def build_pdf(patient, blocks):
 
     pdf.ln(4)
     pdf.set_font("DejaVu", "", 9)
+    # Also use fixed width 180 for disclaimer
     pdf.multi_cell(
-        0,
+        180,
         5,
         pdf_safe(
             "Disclaimer: This report is for educational and metabolic recovery guidance only and "
@@ -751,7 +753,7 @@ def main():
         }
         endo_comment_map = {
             "Near optimal": "Endothelial markers appear within healthy range.",
-            "Mild": "Mild endothelial stress; consider vascular health strategies (BP, lipids, activity, diet).",
+            "Mild": "Mild endothelial stress; consider vascular health strategies (blood pressure, lipids, activity, diet).",
             "Moderate": "Moderate endothelial dysfunction; intensify vascular risk management.",
             "Severe": "Severe endothelial stress; evaluate for advanced atherosclerotic risk and organ damage.",
         }
