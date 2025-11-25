@@ -60,16 +60,16 @@ def severity_to_text(sev, direction="up"):
     if direction == "down":
         mapping = {
             0: "Normal",
-            1: "Mild \u2193",
-            2: "Moderate \u2193",
-            3: "Severe \u2193",
+            1: "Mild ↓",
+            2: "Moderate ↓",
+            3: "Severe ↓",
         }
     else:
         mapping = {
             0: "Normal",
-            1: "Mild \u2191",
-            2: "Moderate \u2191",
-            3: "Severe \u2191",
+            1: "Mild ↑",
+            2: "Moderate ↑",
+            3: "Severe ↑",
         }
     return mapping.get(sev, "NA")
 
@@ -98,6 +98,32 @@ def overall_risk_label(total_score):
     if total_score < 60:
         return "Moderate risk"
     return "High risk - intensive optimization needed"
+
+
+def pdf_safe(text):
+    """
+    Sanitize text before sending to FPDF:
+    - Replace problematic Unicode characters (arrows, dashes, smart quotes, NBSP)
+    - Ensure everything is renderable within latin-1.
+    """
+    if text is None:
+        return ""
+    s = str(text)
+    replacements = {
+        "–": "-",
+        "—": "-",
+        "-": "-",
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "↑": " up",
+        "↓": " down",
+        "→": "->",
+        "←": "<-",
+        "\u00a0": " ",  # non-breaking space
+    }
+    return "".join(replacements.get(ch, ch) for ch in s)
 
 
 # ----------------------------------------------------
@@ -512,74 +538,74 @@ def build_pdf(patient, blocks):
     pdf.set_font("DejaVu", "", 11)
 
     # Patient info
-    pdf.cell(0, 8, f"Patient Name: {patient['name']}", ln=True)
-    pdf.cell(0, 8, f"Age/Sex: {patient['age']} / {patient['sex']}", ln=True)
-    pdf.cell(0, 8, f"Date: {patient['date']}", ln=True)
-    pdf.cell(0, 8, f"Diabetes: {'Yes' if patient['diabetes'] else 'No'}", ln=True)
+    pdf.cell(0, 8, pdf_safe(f"Patient Name: {patient['name']}"), ln=True)
+    pdf.cell(0, 8, pdf_safe(f"Age/Sex: {patient['age']} / {patient['sex']}"), ln=True)
+    pdf.cell(0, 8, pdf_safe(f"Date: {patient['date']}"), ln=True)
+    pdf.cell(0, 8, pdf_safe(f"Diabetes: {'Yes' if patient['diabetes'] else 'No'}"), ln=True)
     pdf.ln(4)
 
     # Overall summary
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Overall Summary", ln=True)
+    pdf.cell(0, 8, pdf_safe("Overall Summary"), ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.cell(0, 8, f"Total Score (0-100): {blocks['total_score']:.1f}", ln=True)
-    pdf.cell(0, 8, f"Risk Category: {blocks['risk_label']}", ln=True)
+    pdf.cell(0, 8, pdf_safe(f"Total Score (0-100): {blocks['total_score']:.1f}"), ln=True)
+    pdf.cell(0, 8, pdf_safe(f"Risk Category: {blocks['risk_label']}"), ln=True)
     pdf.ln(4)
 
     # Domain scores
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Domain Scores (0-25 each)", ln=True)
+    pdf.cell(0, 8, pdf_safe("Domain Scores (0-25 each)"), ln=True)
     pdf.set_font("DejaVu", "", 11)
     pdf.cell(
         0,
         8,
-        f"Inflammation: {blocks['inflam_score']:.1f} / 25 ({blocks['inflam_label']})",
+        pdf_safe(f"Inflammation: {blocks['inflam_score']:.1f} / 25 ({blocks['inflam_label']})"),
         ln=True,
     )
     pdf.cell(
         0,
         8,
-        f"Oxidative / Hb-MCV: {blocks['oxid_score']:.1f} / 25 ({blocks['oxid_label']})",
+        pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_score']:.1f} / 25 ({blocks['oxid_label']})"),
         ln=True,
     )
     pdf.cell(
         0,
         8,
-        f"Endothelial: {blocks['endo_score']:.1f} / 25 ({blocks['endo_label']})",
+        pdf_safe(f"Endothelial: {blocks['endo_score']:.1f} / 25 ({blocks['endo_label']})"),
         ln=True,
     )
     pdf.cell(
         0,
         8,
-        f"Metabolic / IR / Liver: {blocks['metab_score']:.1f} / 25 ({blocks['metab_label']})",
+        pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_score']:.1f} / 25 ({blocks['metab_label']})"),
         ln=True,
     )
     pdf.ln(4)
 
     # Domain-wise comments
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Domain-wise Interpretation", ln=True)
+    pdf.cell(0, 8, pdf_safe("Domain-wise Interpretation"), ln=True)
     pdf.set_font("DejaVu", "", 11)
 
-    pdf.multi_cell(0, 6, f"Inflammation: {blocks['inflam_comment']}")
-    pdf.multi_cell(0, 6, f"Oxidative / Hb-MCV: {blocks['oxid_comment']}")
-    pdf.multi_cell(0, 6, f"Endothelial: {blocks['endo_comment']}")
-    pdf.multi_cell(0, 6, f"Metabolic / IR / Liver: {blocks['metab_comment']}")
+    pdf.multi_cell(0, 6, pdf_safe(f"Inflammation: {blocks['inflam_comment']}"))
+    pdf.multi_cell(0, 6, pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"))
+    pdf.multi_cell(0, 6, pdf_safe(f"Endothelial: {blocks['endo_comment']}"))
+    pdf.multi_cell(0, 6, pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"))
     pdf.ln(4)
 
     # Key indices
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Key Indices (with severity)", ln=True)
+    pdf.cell(0, 8, pdf_safe("Key Indices (with severity)"), ln=True)
     pdf.set_font("DejaVu", "", 11)
 
     for line in blocks["key_indices"]:
-        pdf.cell(0, 7, line, ln=True)
+        pdf.cell(0, 7, pdf_safe(line), ln=True)
 
     pdf.ln(4)
 
     # Full forms
     pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, "Full Forms of Indices", ln=True)
+    pdf.cell(0, 8, pdf_safe("Full Forms of Indices"), ln=True)
     pdf.set_font("DejaVu", "", 10)
 
     full_forms = [
@@ -605,16 +631,18 @@ def build_pdf(patient, blocks):
     ]
 
     for ff in full_forms:
-        pdf.cell(0, 6, ff, ln=True)
+        pdf.cell(0, 6, pdf_safe(ff), ln=True)
 
     pdf.ln(4)
     pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(
         0,
         5,
-        "Disclaimer: This report is for educational and metabolic recovery guidance only and "
-        "does not replace clinical judgment or diagnostic workup. Please correlate with the "
-        "full clinical context.",
+        pdf_safe(
+            "Disclaimer: This report is for educational and metabolic recovery guidance only and "
+            "does not replace clinical judgment or diagnostic workup. Please correlate with the "
+            "full clinical context."
+        ),
     )
 
     # Return PDF as bytes for Streamlit download_button
