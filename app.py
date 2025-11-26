@@ -122,3 +122,5 @@ def build_pdf(patient, blocks):
         return pdf_data
     else:
         return pdf_data.encode("latin-1", "ignore")
+if __name__ == "__main__":
+    main()
