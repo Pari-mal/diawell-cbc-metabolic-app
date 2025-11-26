@@ -91,14 +91,21 @@ def calculate_indices(inputs):
 
     # ----- Atherogenic / metabolic indices ----- #
 
+    # AIP: log10(TG(mmol/L) / HDL(mmol/L))
+    # Inputs are mg/dL; convert: TG/88.57, HDL/38.67
     aip = None
     if tg and hdl and hdl > 0:
-        aip = math.log10(tg / hdl)
+        tg_mmol = tg / 88.57
+        hdl_mmol = hdl / 38.67
+        if hdl_mmol > 0:
+            aip = math.log10(tg_mmol / hdl_mmol)
 
+    # TyG: ln [ TG (mg/dL) * FPG (mg/dL) / 2 ]
     tyg = None
     if tg and fasting_glu:
         tyg = math.log(tg * fasting_glu / 2.0)
 
+    # METS-IR: ln(2*FPG + TG) * BMI / ln(HDL)
     mets_ir = None
     if fasting_glu and tg and bmi and hdl and hdl > 0:
         try:
@@ -178,12 +185,14 @@ def calculate_indices(inputs):
         ],
     )
 
+    # UPDATED AIP RISK BANDS
+    # Low: <0.11, Borderline: 0.11–<0.15, Intermediate: 0.15–0.21, High: >0.21
     idx_sev["AIP"] = classify_index(
         aip,
         [
             (0.11, "Low"),
-            (0.21, "Borderline"),
-            (0.30, "High"),
+            (0.15, "Borderline"),
+            (0.21, "Intermediate"),
         ],
     )
 
@@ -236,7 +245,7 @@ def calculate_indices(inputs):
             return 0
         if "Borderline" in label or "Mild" in label:
             return 1
-        if "Moderate" in label or "Indeterminate" in label:
+        if "Moderate" in label or "Indeterminate" in label or "Intermediate" in label:
             return 2
         if "High" in label or "Severe" in label or "low" in label:
             return 3
