@@ -671,8 +671,14 @@ def build_pdf(patient, blocks):
     )
 
     # Return bytes (classic FPDF style)
-    pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
-    return pdf_bytes
+    pdf_bytes = pdf.output(dest="S")
+
+# FPDF 1.x → returns str; FPDF 2.x → returns bytes
+if isinstance(pdf_bytes, str):
+    pdf_bytes = pdf_bytes.encode("latin-1", "ignore")
+
+return pdf_bytes
+
 
 
 # ============================================================
