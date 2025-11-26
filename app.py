@@ -10,7 +10,13 @@ from fpdf import FPDF
 class ReportPDF(FPDF):
     def header(self):
         self.set_font("DejaVu", "B", 14)
-        self.cell(0, 8, pdf_safe("DiaWell C.O.R.E. Foundation - Metabolic Health Report"), ln=True, align="C")
+        self.cell(
+            0,
+            8,
+            pdf_safe("DiaWell C.O.R.E. Foundation - Metabolic Health Report"),
+            ln=True,
+            align="C",
+        )
         self.ln(2)
 
     def footer(self):
@@ -21,9 +27,19 @@ class ReportPDF(FPDF):
 
 def init_pdf():
     pdf = ReportPDF()
-    # Add Unicode-capable DejaVu fonts (paths valid on Streamlit Cloud)
-    pdf.add_font("DejaVu", "", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", uni=True)
-    pdf.add_font("DejaVu", "B", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", uni=True)
+    # Unicode-capable DejaVu fonts (paths valid on Streamlit Cloud)
+    pdf.add_font(
+        "DejaVu",
+        "",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        uni=True,
+    )
+    pdf.add_font(
+        "DejaVu",
+        "B",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        uni=True,
+    )
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_left_margin(15)
     pdf.set_right_margin(15)
@@ -99,42 +115,64 @@ def calc_inflammation_block(neut, lymph, mono, plate):
     plr = safe_div(plate, lymph)
     sii = safe_div(plate * neut, lymph) if lymph else None
     siri = safe_div(neut * mono, lymph) if lymph else None
-    aisi = neut * lymph * mono if all(x is not None for x in [neut, lymph, mono]) else None
+    aisi = neut * lymph * mono if all(
+        x is not None for x in [neut, lymph, mono]
+    ) else None
 
     # Severity cutoffs
     def sev_nlr(x):
-        if x is None: return None
-        if x <= 2: return 0
-        if x <= 3: return 1
-        if x <= 5: return 2
+        if x is None:
+            return None
+        if x <= 2:
+            return 0
+        if x <= 3:
+            return 1
+        if x <= 5:
+            return 2
         return 3
 
     def sev_plr(x):
-        if x is None: return None
-        if x < 120: return 0
-        if x < 150: return 1
-        if x < 200: return 2
+        if x is None:
+            return None
+        if x < 120:
+            return 0
+        if x < 150:
+            return 1
+        if x < 200:
+            return 2
         return 3
 
     def sev_sii(x):
-        if x is None: return None
-        if x < 300: return 0
-        if x < 600: return 1
-        if x < 900: return 2
+        if x is None:
+            return None
+        if x < 300:
+            return 0
+        if x < 600:
+            return 1
+        if x < 900:
+            return 2
         return 3
 
     def sev_siri(x):
-        if x is None: return None
-        if x < 0.8: return 0
-        if x < 1.5: return 1
-        if x < 2.5: return 2
+        if x is None:
+            return None
+        if x < 0.8:
+            return 0
+        if x < 1.5:
+            return 1
+        if x < 2.5:
+            return 2
         return 3
 
     def sev_aisi(x):
-        if x is None: return None
-        if x < 150: return 0
-        if x < 300: return 1
-        if x < 600: return 2
+        if x is None:
+            return None
+        if x < 150:
+            return 0
+        if x < 300:
+            return 1
+        if x < 600:
+            return 2
         return 3
 
     s_nlr = sev_nlr(nlr)
@@ -143,7 +181,9 @@ def calc_inflammation_block(neut, lymph, mono, plate):
     s_siri = sev_siri(siri)
     s_aisi = sev_aisi(aisi)
 
-    severities = [s for s in [s_nlr, s_plr, s_sii, s_siri, s_aisi] if s is not None]
+    severities = [
+        s for s in [s_nlr, s_plr, s_sii, s_siri, s_aisi] if s is not None
+    ]
     inflam_sev = sum(severities) / len(severities) if severities else 0
     inflam_score = round(25 * (inflam_sev / 3), 0)
 
@@ -171,45 +211,69 @@ def calc_oxidative_block(rdw, plate, albumin, hb, mcv):
     hpr = safe_div(hb, plate)
 
     def sev_rdw(x):
-        if x is None: return None
-        if x < 13: return 0
-        if x < 14: return 1
-        if x < 15: return 2
+        if x is None:
+            return None
+        if x < 13:
+            return 0
+        if x < 14:
+            return 1
+        if x < 15:
+            return 2
         return 3
 
     def sev_rpr(x):
-        if x is None: return None
-        if x < 0.07: return 0
-        if x < 0.10: return 1
-        if x < 0.15: return 2
+        if x is None:
+            return None
+        if x < 0.07:
+            return 0
+        if x < 0.10:
+            return 1
+        if x < 0.15:
+            return 2
         return 3
 
     def sev_rar(x):
-        if x is None: return None
-        if x < 3: return 0
-        if x < 4: return 1
-        if x < 5: return 2
+        if x is None:
+            return None
+        if x < 3:
+            return 0
+        if x < 4:
+            return 1
+        if x < 5:
+            return 2
         return 3
 
     def sev_hbrdw(x):
-        if x is None: return None
-        if x >= 1.35: return 0
-        if x >= 1.20: return 1
-        if x >= 1.00: return 2
+        if x is None:
+            return None
+        if x >= 1.35:
+            return 0
+        if x >= 1.20:
+            return 1
+        if x >= 1.00:
+            return 2
         return 3
 
     def sev_mcvhb(x):
-        if x is None: return None
-        if x < 7: return 0
-        if x < 8: return 1
-        if x < 9: return 2
+        if x is None:
+            return None
+        if x < 7:
+            return 0
+        if x < 8:
+            return 1
+        if x < 9:
+            return 2
         return 3
 
     def sev_hpr(x):
-        if x is None: return None
-        if x < 0.07: return 0
-        if x < 0.09: return 1
-        if x < 0.12: return 2
+        if x is None:
+            return None
+        if x < 0.07:
+            return 0
+        if x < 0.09:
+            return 1
+        if x < 0.12:
+            return 2
         return 3
 
     s_rdw = sev_rdw(rdw)
@@ -219,7 +283,11 @@ def calc_oxidative_block(rdw, plate, albumin, hb, mcv):
     s_mcvhb = sev_mcvhb(mcvhb)
     s_hpr = sev_hpr(hpr)
 
-    severities = [s for s in [s_rdw, s_rpr, s_rar, s_hbrdw, s_mcvhb, s_hpr] if s is not None]
+    severities = [
+        s
+        for s in [s_rdw, s_rpr, s_rar, s_hbrdw, s_mcvhb, s_hpr]
+        if s is not None
+    ]
     oxid_sev = sum(severities) / len(severities) if severities else 0
     oxid_score = round(25 * (oxid_sev / 3), 0)
 
@@ -246,17 +314,25 @@ def calc_endothelial_block(mono, neut, hdl):
     nhr = safe_div(neut, hdl)
 
     def sev_mhr(x):
-        if x is None: return None
-        if x < 0.01: return 0
-        if x < 0.02: return 1
-        if x < 0.03: return 2
+        if x is None:
+            return None
+        if x < 0.01:
+            return 0
+        if x < 0.02:
+            return 1
+        if x < 0.03:
+            return 2
         return 3
 
     def sev_nhr(x):
-        if x is None: return None
-        if x < 0.10: return 0
-        if x < 0.20: return 1
-        if x < 0.30: return 2
+        if x is None:
+            return None
+        if x < 0.10:
+            return 0
+        if x < 0.20:
+            return 1
+        if x < 0.30:
+            return 2
         return 3
 
     s_mhr = sev_mhr(mhr)
@@ -276,7 +352,21 @@ def calc_endothelial_block(mono, neut, hdl):
     }
 
 
-def calc_metabolic_block(age, sex, diabetes, glu, tg, hdl, ast, alt, hba1c, waist, bmi, htn, plate):
+def calc_metabolic_block(
+    age,
+    sex,
+    diabetes,
+    glu,
+    tg,
+    hdl,
+    ast,
+    alt,
+    hba1c,
+    waist,
+    bmi,
+    htn,
+    plate,
+):
     # TyG
     tyg = None
     if glu > 0 and tg > 0:
@@ -314,45 +404,69 @@ def calc_metabolic_block(age, sex, diabetes, glu, tg, hdl, ast, alt, hba1c, wais
 
     # Severity cutoffs
     def sev_tyg(x):
-        if x is None: return None
-        if x < 8.5: return 0
-        if x < 8.9: return 1
-        if x < 9.5: return 2
+        if x is None:
+            return None
+        if x < 8.5:
+            return 0
+        if x < 8.9:
+            return 1
+        if x < 9.5:
+            return 2
         return 3
 
     def sev_mets(x):
-        if x is None: return None
-        if x < 35: return 0
-        if x < 40: return 1
-        if x < 45: return 2
+        if x is None:
+            return None
+        if x < 35:
+            return 0
+        if x < 40:
+            return 1
+        if x < 45:
+            return 2
         return 3
 
     def sev_aip(x):
-        if x is None: return None
-        if x < 0.11: return 0     # low
-        if x < 0.21: return 1     # intermediate
-        if x < 0.30: return 2     # high
-        return 3                  # very high
+        if x is None:
+            return None
+        if x < 0.11:
+            return 0  # low
+        if x < 0.21:
+            return 1  # intermediate
+        if x < 0.30:
+            return 2  # high
+        return 3      # very high
 
     def sev_hsi(x):
-        if x is None: return None
-        if x < 30: return 0
-        if x < 35: return 1
-        if x < 40: return 2
+        if x is None:
+            return None
+        if x < 30:
+            return 0
+        if x < 35:
+            return 1
+        if x < 40:
+            return 2
         return 3
 
     def sev_fib4(x):
-        if x is None: return None
-        if x < 1.3: return 0
-        if x < 2.0: return 1
-        if x < 2.67: return 2
+        if x is None:
+            return None
+        if x < 1.3:
+            return 0
+        if x < 2.0:
+            return 1
+        if x < 2.67:
+            return 2
         return 3
 
     def sev_egdr(x):
-        if x is None: return None
-        if x > 8: return 0
-        if x > 6: return 1
-        if x > 4: return 2
+        if x is None:
+            return None
+        if x > 8:
+            return 0
+        if x > 6:
+            return 1
+        if x > 4:
+            return 2
         return 3
 
     s_tyg = sev_tyg(tyg)
@@ -362,7 +476,11 @@ def calc_metabolic_block(age, sex, diabetes, glu, tg, hdl, ast, alt, hba1c, wais
     s_fib4 = sev_fib4(fib4)
     s_egdr = sev_egdr(egdr)
 
-    severities = [s for s in [s_tyg, s_mets, s_aip, s_hsi, s_fib4, s_egdr] if s is not None]
+    severities = [
+        s
+        for s in [s_tyg, s_mets, s_aip, s_hsi, s_fib4, s_egdr]
+        if s is not None
+    ]
     metab_sev = sum(severities) / len(severities) if severities else 0
     metab_score = round(25 * (metab_sev / 3), 0)
 
@@ -424,35 +542,98 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, pdf_safe(f"Patient Name: {patient['name']}"), ln=True)
     pdf.cell(0, 8, pdf_safe(f"Age / Sex: {patient['age']} / {patient['sex']}"), ln=True)
     pdf.cell(0, 8, pdf_safe(f"Date: {patient['date']}"), ln=True)
-    pdf.cell(0, 8, pdf_safe(f"Diabetes: {'Yes' if patient['diabetes'] else 'No'}"), ln=True)
+    pdf.cell(
+        0,
+        8,
+        pdf_safe(f"Diabetes: {'Yes' if patient['diabetes'] else 'No'}"),
+        ln=True,
+    )
     pdf.ln(4)
 
     # Overall summary
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, pdf_safe("Overall Summary"), ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.multi_cell(0, 6, pdf_safe(f"Total Score (0-100): {blocks['total_score']:.1f}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Risk Category: {blocks['risk_label']}"))
+    pdf.cell(
+        0,
+        6,
+        pdf_safe(f"Total Score (0-100): {blocks['total_score']:.1f}"),
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        6,
+        pdf_safe(f"Risk Category: {blocks['risk_label']}"),
+        ln=True,
+    )
     pdf.ln(4)
 
     # Domain scores
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, pdf_safe("Domain Scores (0-25 each)"), ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.multi_cell(0, 6, pdf_safe(f"Inflammation: {blocks['inflam_score']:.1f}/25 ({blocks['inflam_label']})"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_score']:.1f}/25 ({blocks['oxid_label']})"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Endothelial: {blocks['endo_score']:.1f}/25 ({blocks['endo_label']})"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_score']:.1f}/25 ({blocks['metab_label']})"))
+    pdf.cell(
+        0,
+        6,
+        pdf_safe(
+            f"Inflammation: {blocks['inflam_score']:.1f}/25 "
+            f"({blocks['inflam_label']})"
+        ),
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        6,
+        pdf_safe(
+            f"Oxidative / Hb-MCV: {blocks['oxid_score']:.1f}/25 "
+            f"({blocks['oxid_label']})"
+        ),
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        6,
+        pdf_safe(
+            f"Endothelial: {blocks['endo_score']:.1f}/25 "
+            f"({blocks['endo_label']})"
+        ),
+        ln=True,
+    )
+    pdf.cell(
+        0,
+        6,
+        pdf_safe(
+            f"Metabolic / IR / Liver: {blocks['metab_score']:.1f}/25 "
+            f"({blocks['metab_label']})"
+        ),
+        ln=True,
+    )
     pdf.ln(4)
 
     # Domain-wise interpretation
     pdf.set_font("DejaVu", "B", 12)
     pdf.cell(0, 8, pdf_safe("Domain Interpretation"), ln=True)
     pdf.set_font("DejaVu", "", 11)
-    pdf.multi_cell(0, 6, pdf_safe(f"Inflammation: {blocks['inflam_comment']}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Endothelial: {blocks['endo_comment']}"))
-    pdf.multi_cell(0, 6, pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"))
+    pdf.multi_cell(
+        180,
+        6,
+        pdf_safe(f"Inflammation: {blocks['inflam_comment']}"),
+    )
+    pdf.multi_cell(
+        180,
+        6,
+        pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"),
+    )
+    pdf.multi_cell(
+        180,
+        6,
+        pdf_safe(f"Endothelial: {blocks['endo_comment']}"),
+    )
+    pdf.multi_cell(
+        180,
+        6,
+        pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"),
+    )
     pdf.ln(4)
 
     # Key indices
@@ -460,7 +641,7 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, pdf_safe("Key Indices (with severity)"), ln=True)
     pdf.set_font("DejaVu", "", 11)
     for line in blocks["key_indices"]:
-        pdf.multi_cell(0, 6, pdf_safe(line))
+        pdf.cell(0, 6, pdf_safe(line), ln=True)
     pdf.ln(4)
 
     # Full forms
@@ -468,18 +649,18 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, pdf_safe("Full Forms of Indices"), ln=True)
     pdf.set_font("DejaVu", "", 10)
     for ff in FULL_FORMS_LIST:
-        pdf.multi_cell(0, 5, pdf_safe(ff))
+        pdf.cell(0, 5, pdf_safe(ff), ln=True)
     pdf.ln(4)
 
     # Disclaimer
     pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(
-        0,
+        180,
         5,
         pdf_safe(
-            "Disclaimer: This report is for educational and metabolic recovery guidance only "
-            "and does not replace clinical judgment or diagnostic workup. Please correlate with "
-            "the full clinical context."
+            "Disclaimer: This report is for educational and metabolic recovery "
+            "guidance only and does not replace clinical judgment or diagnostic "
+            "workup. Please correlate with the full clinical context."
         ),
     )
 
@@ -566,10 +747,27 @@ def main():
         oxid = calc_oxidative_block(rdw, plate, albumin, hb, mcv)
         endo = calc_endothelial_block(mono, neut, hdl)
         metab = calc_metabolic_block(
-            age, sex, diabetes, glu, tg, hdl, ast, alt, hba1c, waist, bmi, htn, plate
+            age,
+            sex,
+            diabetes,
+            glu,
+            tg,
+            hdl,
+            ast,
+            alt,
+            hba1c,
+            waist,
+            bmi,
+            htn,
+            plate,
         )
 
-        total_score = infl["inflam_score"] + oxid["oxid_score"] + endo["endo_score"] + metab["metab_score"]
+        total_score = (
+            infl["inflam_score"]
+            + oxid["oxid_score"]
+            + endo["endo_score"]
+            + metab["metab_score"]
+        )
         label = overall_risk_label(total_score)
 
         inflam_label = severity_label_from_score(infl["inflam_score"])
@@ -614,14 +812,29 @@ def main():
         st.subheader("4. Domain Scores")
         d1, d2 = st.columns(2)
         with d1:
-            st.write(f"Inflammation score: **{infl['inflam_score']:.1f} / 25 ({inflam_label})**")
-            st.write(f"Oxidative / Hb–MCV score: **{oxid['oxid_score']:.1f} / 25 ({oxid_label})**")
+            st.write(
+                f"Inflammation score: **{infl['inflam_score']:.1f} / 25 "
+                f"({inflam_label})**"
+            )
+            st.write(
+                f"Oxidative / Hb–MCV score: **{oxid['oxid_score']:.1f} / 25 "
+                f"({oxid_label})**"
+            )
         with d2:
-            st.write(f"Endothelial score: **{endo['endo_score']:.1f} / 25 ({endo_label})**")
-            st.write(f"Metabolic / IR / Liver score: **{metab['metab_score']:.1f} / 25 ({metab_label})**")
+            st.write(
+                f"Endothelial score: **{endo['endo_score']:.1f} / 25 "
+                f"({endo_label})**"
+            )
+            st.write(
+                f"Metabolic / IR / Liver score: **{metab['metab_score']:.1f} / 25 "
+                f"({metab_label})**"
+            )
 
         st.subheader("5. Overall Score")
-        st.write(f"Total CBC + Biochem Metabolic Health Score: **{total_score:.1f} / 100**")
+        st.write(
+            f"Total CBC + Biochem Metabolic Health Score: "
+            f"**{total_score:.1f} / 100**"
+        )
         st.write(f"Overall interpretation: **{label}**")
 
         # ---------------- Key indices on screen ----------------
@@ -680,7 +893,8 @@ def main():
                 else "FIB-4: NA"
             )
             st.write(
-                f"eGDR: {metab['egdr']:.2f} mg/kg/min ({down_severity_text(metab['s_egdr'])})"
+                f"eGDR: {metab['egdr']:.2f} mg/kg/min "
+                f"({down_severity_text(metab['s_egdr'])})"
             )
 
         # ---------------- Build content for PDF ----------------
@@ -693,7 +907,6 @@ def main():
             "date": today_str,
         }
 
-        # key indices lines (same style as on-screen)
         key_indices_lines = []
 
         if infl["nlr"] is not None:
@@ -734,7 +947,8 @@ def main():
                 f"FIB-4: {metab['fib4']:.2f} ({up_severity_text(metab['s_fib4'])})"
             )
         key_indices_lines.append(
-            f"eGDR: {metab['egdr']:.2f} mg/kg/min ({down_severity_text(metab['s_egdr'])})"
+            f"eGDR: {metab['egdr']:.2f} mg/kg/min "
+            f"({down_severity_text(metab['s_egdr'])})"
         )
 
         blocks = {
