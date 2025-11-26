@@ -14,7 +14,12 @@ def safe_float(x, default=None):
 
 
 def classify_index(value, cutoffs):
-    """Simple classifier using (upper_limit, label) pairs."""
+    """
+    Generic classifier:
+    cutoffs = [(upper_limit, label), ...]
+    Returns label for first upper_limit where value <= upper_limit,
+    else returns label of last cutoff.
+    """
     if value is None:
         return "NA"
     for limit, label in cutoffs:
@@ -43,56 +48,62 @@ def calculate_indices(inputs):
     sex = inputs.get("sex", "M")
     diabetes_flag = inputs.get("diabetes", False)
 
-    wbc = safe_float(inputs.get("wbc"))
-    neut_pct = safe_float(inputs.get("neut_pct"))
-    lymph_pct = safe_float(inputs.get("lymph_pct"))
-    mono_pct = safe_float(inputs.get("mono_pct"))
-    platelets = safe_float(inputs.get("platelets"))
+    wbc = safe_float(inputs.get("wbc"))             # ×10⁹/L
+    neut_pct = safe_float(inputs.get("neut_pct"))   # %
+    lymph_pct = safe_float(inputs.get("lymph_pct")) # %
+    mono_pct = safe_float(inputs.get("mono_pct"))   # %
+    platelets = safe_float(inputs.get("platelets")) # ×10⁹/L
 
-    fasting_glu = safe_float(inputs.get("fasting_glu"))
-    tg = safe_float(inputs.get("tg"))
-    hdl = safe_float(inputs.get("hdl"))
-    ast = safe_float(inputs.get("ast"))
-    alt = safe_float(inputs.get("alt"))
-    hba1c = safe_float(inputs.get("hba1c"))
+    fasting_glu = safe_float(inputs.get("fasting_glu"))  # mg/dL
+    tg = safe_float(inputs.get("tg"))                   # mg/dL
+    hdl = safe_float(inputs.get("hdl"))                 # mg/dL
+    ast = safe_float(inputs.get("ast"))                 # IU/L
+    alt = safe_float(inputs.get("alt"))                 # IU/L
+    hba1c = safe_float(inputs.get("hba1c"))             # %
 
-    weight = safe_float(inputs.get("weight"))
-    height = safe_float(inputs.get("height"))
-    waist = safe_float(inputs.get("waist"))
+    weight = safe_float(inputs.get("weight"))  # kg
+    height = safe_float(inputs.get("height"))  # cm
+    waist = safe_float(inputs.get("waist"))    # cm
     htn = inputs.get("htn", False)
 
-    # BMI (for METS-IR, HSI)
+    # ---- Anthropometry ---- #
     bmi = None
     if weight and height:
         bmi = weight / ((height / 100.0) ** 2)
 
+    # ---- Absolute CBC counts ---- #
+    anc = alc = amc = None
+    if wbc is not None:
+        if neut_pct is not None:
+            anc = wbc * neut_pct / 100.0
+        if lymph_pct is not None:
+            alc = wbc * lymph_pct / 100.0
+        if mono_pct is not None:
+            amc = wbc * mono_pct / 100.0
+
     # ----- Inflammatory indices ----- #
 
     nlr = None
-    if neut_pct and lymph_pct and lymph_pct != 0:
-        nlr = neut_pct / lymph_pct
+    if anc is not None and alc and alc != 0:
+        nlr = anc / alc
 
     plr = None
-    if wbc and lymph_pct and lymph_pct != 0:
-        lymph_abs = wbc * lymph_pct / 100.0
-        if lymph_abs > 0 and platelets:
-            plr = platelets / lymph_abs
-    elif platelets and lymph_pct and lymph_pct != 0:
-        # rough fallback
-        plr = platelets / lymph_pct
+    if platelets is not None and alc and alc != 0:
+        plr = platelets / alc
 
     sii = None
-    if platelets and neut_pct and lymph_pct and lymph_pct != 0:
-        sii = platelets * (neut_pct / lymph_pct)
+    if platelets is not None and anc is not None and alc and alc != 0:
+        # Standard definition: (Platelets × ANC) / ALC
+        sii = (platelets * anc) / alc
 
     siri = None
-    if neut_pct and mono_pct and lymph_pct and lymph_pct != 0:
-        siri = (neut_pct * mono_pct) / lymph_pct
+    if anc is not None and amc is not None and alc and alc != 0:
+        # Correct definition: (ANC × AMC) / ALC
+        siri = (anc * amc) / alc
 
     # ----- Atherogenic / metabolic indices ----- #
 
     # AIP: log10(TG(mmol/L) / HDL(mmol/L))
-    # Inputs are mg/dL; convert: TG/88.57, HDL/38.67
     aip = None
     if tg and hdl and hdl > 0:
         tg_mmol = tg / 88.57
@@ -127,7 +138,7 @@ def calculate_indices(inputs):
     if age and ast and alt and platelets and alt > 0 and platelets > 0:
         fib4 = (age * ast) / (platelets * math.sqrt(alt))
 
-    # eGDR
+    # eGDR (higher = better insulin sensitivity)
     egdr = None
     if waist and hba1c:
         egdr = 21.16 - (0.09 * waist) - (3.41 * (1 if htn else 0)) - (0.55 * hba1c)
@@ -145,10 +156,11 @@ def calculate_indices(inputs):
         "eGDR": egdr,
     }
 
-    # ----- Severity labels per index ----- #
+    # ----- Severity labels per index (UPDATED CUTOFFS) ----- #
 
     idx_sev = {}
 
+    # NLR
     idx_sev["NLR"] = classify_index(
         nlr,
         [
@@ -158,6 +170,7 @@ def calculate_indices(inputs):
         ],
     )
 
+    # PLR
     idx_sev["PLR"] = classify_index(
         plr,
         [
@@ -167,6 +180,7 @@ def calculate_indices(inputs):
         ],
     )
 
+    # SII
     idx_sev["SII"] = classify_index(
         sii,
         [
@@ -176,6 +190,7 @@ def calculate_indices(inputs):
         ],
     )
 
+    # SIRI
     idx_sev["SIRI"] = classify_index(
         siri,
         [
@@ -185,25 +200,27 @@ def calculate_indices(inputs):
         ],
     )
 
-    # UPDATED AIP RISK BANDS
-    # Low: <0.11, Borderline: 0.11–<0.15, Intermediate: 0.15–0.21, High: >0.21
+    # AIP (mmol/L-based)
     idx_sev["AIP"] = classify_index(
         aip,
         [
-            (0.11, "Low"),
+            (0.11, "Low risk"),
             (0.15, "Borderline"),
             (0.21, "Intermediate"),
         ],
     )
 
+    # TyG
     idx_sev["TyG"] = classify_index(
         tyg,
         [
-            (8.5, "Mild high"),
-            (9.0, "Moderate high"),
+            (8.5, "Normal"),
+            (9.0, "Mild high"),
+            (9.5, "Moderate high"),
         ],
     )
 
+    # METS-IR
     idx_sev["METS-IR"] = classify_index(
         mets_ir,
         [
@@ -213,6 +230,7 @@ def calculate_indices(inputs):
         ],
     )
 
+    # HSI
     idx_sev["HSI"] = classify_index(
         hsi,
         [
@@ -221,6 +239,7 @@ def calculate_indices(inputs):
         ],
     )
 
+    # FIB-4
     idx_sev["FIB-4"] = classify_index(
         fib4,
         [
@@ -229,28 +248,37 @@ def calculate_indices(inputs):
         ],
     )
 
+    # eGDR (higher is better)
+    # >8.0: Normal; 6–8: Mild low; 4–6: Moderate low; <4: Severe low
     idx_sev["eGDR"] = classify_index(
         egdr,
         [
-            (8.0, "Mild low"),
+            (4.0, "Severe low"),
             (6.0, "Moderate low"),
+            (8.0, "Mild low"),
         ],
     )
 
-    # map severity → numeric penalty
+    # ---- Map severity → numeric penalty for domain scores ---- #
+
     def sev_to_score(label):
         if label in ("NA", None):
             return 0
-        if "Normal" in label or label == "Low":
+        # "Good" / low-risk labels
+        if label in ("Normal", "Low", "Low risk"):
             return 0
-        if "Borderline" in label or "Mild" in label:
+        # Mild / Borderline
+        if "Mild" in label or "Borderline" in label:
             return 1
-        if "Moderate" in label or "Indeterminate" in label or "Intermediate" in label:
+        # Moderate, Intermediate, Indeterminate
+        if "Moderate" in label or "Intermediate" in label or "Indeterminate" in label:
             return 2
-        if "High" in label or "Severe" in label or "low" in label:
+        # High / Severe
+        if "High" in label or "Severe" in label:
             return 3
         return 0
 
+    # Domains
     dom_map = {
         "Inflammation": ["NLR", "PLR", "SII", "SIRI"],
         "Oxidative / Hb-MCV": ["AIP"],
@@ -269,7 +297,7 @@ def calculate_indices(inputs):
             continue
 
         raw = sum(vals)
-        max_raw = len(vals) * 3  # per index max 3
+        max_raw = len(vals) * 3  # max 3 per index
         score_0_25 = round((raw / max_raw) * 25, 1)
         domain_scores[dom] = score_0_25
 
@@ -295,7 +323,7 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
     """
     Returns: bytes (PDF), robust to different fpdf2 return types.
     """
-    from fpdf import FPDF  # require fpdf2 in requirements.txt
+    from fpdf import FPDF  # ensure fpdf2 in requirements.txt
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -374,9 +402,9 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
     legend_lines = [
         "NLR = Neutrophil-to-Lymphocyte Ratio",
         "PLR = Platelet-to-Lymphocyte Ratio",
-        "SII = Systemic Immune-Inflammation Index",
-        "SIRI = Systemic Inflammation Response Index",
-        "AIP = Atherogenic Index of Plasma",
+        "SII = (Platelets × ANC) / ALC",
+        "SIRI = (ANC × AMC) / ALC",
+        "AIP = log10[TG(mmol/L)/HDL-C(mmol/L)]",
         "HSI = Hepatic Steatosis Index",
         "FIB-4 = Fibrosis-4 Index",
         "TyG = Triglyceride-Glucose Index",
@@ -400,7 +428,6 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
 
     # --------- Return as bytes (robust) --------- #
     result = pdf.output(dest="S")
-    # fpdf2 sometimes returns str, sometimes bytes/bytearray depending on version
     if isinstance(result, str):
         pdf_bytes = result.encode("latin-1", "ignore")
     else:
@@ -417,7 +444,7 @@ def main():
     st.title("DiaWell C.O.R.E. – Metabolic Health & CBC Fitness Marker")
     st.write(
         "Enter CBC and metabolic parameters to generate an integrated metabolic health report "
-        "with inflammation and insulin resistance markers, plus a downloadable PDF."
+        "with inflammation, atherogenicity, insulin resistance, liver health, and a PDF summary."
     )
 
     with st.form("input_form"):
