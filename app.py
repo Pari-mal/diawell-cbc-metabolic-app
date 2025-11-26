@@ -284,7 +284,7 @@ def calculate_indices(inputs):
 
 def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_score, risk_cat):
     """
-    Returns: bytes (PDF)
+    Returns: bytes (PDF), robust to different fpdf2 return types.
     """
     from fpdf import FPDF  # require fpdf2 in requirements.txt
 
@@ -389,8 +389,14 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
     pdf.set_x(pdf.l_margin)
     pdf.multi_cell(effective_width, 5, disclaimer)
 
-    # --------- Return as bytes --------- #
-    pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
+    # --------- Return as bytes (robust) --------- #
+    result = pdf.output(dest="S")
+    # fpdf2 sometimes returns str, sometimes bytes/bytearray depending on version
+    if isinstance(result, str):
+        pdf_bytes = result.encode("latin-1", "ignore")
+    else:
+        pdf_bytes = bytes(result)
+
     return pdf_bytes
 
 
