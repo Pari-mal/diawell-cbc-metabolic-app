@@ -733,11 +733,20 @@ def build_pdf(patient, blocks):
     )
 
     # Return PDF bytes compatible with Streamlit
+       # Return PDF bytes compatible with Streamlit (robust for str/bytes/bytearray)
     pdf_data = pdf.output(dest="S")
+
     if isinstance(pdf_data, bytes):
+        # Already bytes → return as-is
         return pdf_data
-    else:
-        return pdf_data.encode("latin-1", "ignore")
+
+    if isinstance(pdf_data, bytearray):
+        # Convert bytearray to bytes
+        return bytes(pdf_data)
+
+    # Fallback: assume it's a str (classic FPDF) or something string-like
+    return str(pdf_data).encode("latin-1", "ignore")
+
 
 
 # =========================================================
