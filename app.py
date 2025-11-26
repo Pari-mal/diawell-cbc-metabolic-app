@@ -59,17 +59,12 @@ def calculate_indices(inputs):
     weight = safe_float(inputs.get("weight"))
     height = safe_float(inputs.get("height"))
     waist = safe_float(inputs.get("waist"))
-    hip = safe_float(inputs.get("hip"))
     htn = inputs.get("htn", False)
 
-    # BMI & WHR (for future use if needed)
+    # BMI (for METS-IR, HSI)
     bmi = None
     if weight and height:
         bmi = weight / ((height / 100.0) ** 2)
-
-    whr = None
-    if waist and hip:
-        whr = waist / hip
 
     # ----- Inflammatory indices ----- #
 
@@ -249,7 +244,7 @@ def calculate_indices(inputs):
 
     dom_map = {
         "Inflammation": ["NLR", "PLR", "SII", "SIRI"],
-        "Oxidative": ["AIP"],
+        "Oxidative / Hb-MCV": ["AIP"],
         "Endothelial": ["AIP", "METS-IR"],
         "Metabolic / Liver / IR": ["TyG", "METS-IR", "HSI", "FIB-4", "eGDR"],
     }
@@ -285,24 +280,25 @@ def calculate_indices(inputs):
     return indices, idx_sev, domain_scores, domain_labels, total_score, risk_cat
 
 
-# ----------------- PDF builder (safe) ----------------- #
+# ----------------- PDF builder ----------------- #
 
 def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_score, risk_cat):
     """
-    Returns:
-      (pdf_bytes, error_message)
-      If error_message is not None, pdf_bytes will be None.
+    Returns: bytes (PDF)
     """
-    try:
-        from fpdf import FPDF
-    except Exception as e:
-        return None, f"FPDF import error: {e}"
+    from fpdf import FPDF  # require fpdf2 in requirements.txt
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    # Header
+    # Effective printable width
+    try:
+        effective_width = pdf.epw  # fpdf2 convenience
+    except AttributeError:
+        effective_width = pdf.w - pdf.l_margin - pdf.r_margin
+
+    # --------- Header --------- #
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "DiaWell C.O.R.E. Foundation - Metabolic Health Report", ln=True)
 
@@ -321,7 +317,7 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
 
     pdf.ln(5)
 
-    # Overall summary
+    # --------- Overall summary --------- #
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 7, "Overall Summary", ln=True)
     pdf.set_font("Helvetica", "", 11)
@@ -330,18 +326,18 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
     pdf.cell(0, 6, f"Total Score (0-100): {score_str}", ln=True)
     pdf.cell(0, 6, f"Risk Category: {risk_cat}", ln=True)
 
-    # Domain scores
+    # --------- Domain scores --------- #
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 7, "Domain Scores (0-25 each)", ln=True)
     pdf.set_font("Helvetica", "", 11)
 
-    for dom in ["Inflammation", "Oxidative", "Endothelial", "Metabolic / Liver / IR"]:
+    for dom in ["Inflammation", "Oxidative / Hb-MCV", "Endothelial", "Metabolic / Liver / IR"]:
         sc = domain_scores.get(dom, 0.0)
         lab = domain_labels.get(dom, "NA")
         pdf.cell(0, 6, f"{dom}: {round(sc, 1)} ({lab})", ln=True)
 
-    # Key indices
+    # --------- Key indices --------- #
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 7, "Key Indices (with severity)", ln=True)
@@ -360,7 +356,7 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
                 val_str = f"{val:.2f}"
         pdf.cell(0, 6, f"{key}: {val_str} ({lab})", ln=True)
 
-    # Legend
+    # --------- Legend --------- #
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 7, "Abbreviation Legend", ln=True)
@@ -378,25 +374,24 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
         "METS-IR = Metabolic Score for Insulin Resistance",
         "eGDR = Estimated Glucose Disposal Rate",
     ]
-    for ln in legend_lines:
-        pdf.multi_cell(0, 5, ln)
 
-    # Disclaimer
+    for ln in legend_lines:
+        pdf.set_x(pdf.l_margin)
+        pdf.multi_cell(effective_width, 5, ln)
+
+    # --------- Disclaimer --------- #
     pdf.ln(3)
     pdf.set_font("Helvetica", "", 9)
     disclaimer = (
         "This report is for educational and metabolic recovery guidance only and does not "
         "replace clinical judgment or diagnostic workup. Please correlate with full clinical context."
     )
-    pdf.multi_cell(0, 5, disclaimer)
+    pdf.set_x(pdf.l_margin)
+    pdf.multi_cell(effective_width, 5, disclaimer)
 
-    # Export PDF safely
-    try:
-        pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
-    except Exception as e:
-        return None, f"PDF generation error: {e}"
-
-    return pdf_bytes, None
+    # --------- Return as bytes --------- #
+    pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
+    return pdf_bytes
 
 
 # ----------------- Streamlit UI ----------------- #
@@ -406,7 +401,7 @@ def main():
 
     st.title("DiaWell C.O.R.E. – Metabolic Health & CBC Fitness Marker")
     st.write(
-        "Enter CBC and basic metabolic parameters to generate an integrated metabolic health report "
+        "Enter CBC and metabolic parameters to generate an integrated metabolic health report "
         "with inflammation and insulin resistance markers, plus a downloadable PDF."
     )
 
@@ -424,15 +419,13 @@ def main():
 
         st.markdown("---")
         st.subheader("Anthropometry")
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3 = st.columns(3)
         with c1:
             weight = st.number_input("Weight (kg)", min_value=0.0, value=70.0, step=0.1)
         with c2:
             height = st.number_input("Height (cm)", min_value=0.0, value=170.0, step=0.1)
         with c3:
             waist = st.number_input("Waist (cm)", min_value=0.0, value=95.0, step=0.1)
-        with c4:
-            hip = st.number_input("Hip (cm)", min_value=0.0, value=100.0, step=0.1)
 
         htn = st.checkbox("Hypertension present?", value=False)
 
@@ -482,7 +475,6 @@ def main():
             "weight": weight,
             "height": height,
             "waist": waist,
-            "hip": hip,
             "htn": htn,
         }
 
@@ -498,7 +490,7 @@ def main():
             st.write(f"**Risk Category:** {risk_cat}")
 
             st.subheader("Domain Scores (0-25)")
-            for dom in ["Inflammation", "Oxidative", "Endothelial", "Metabolic / Liver / IR"]:
+            for dom in ["Inflammation", "Oxidative / Hb-MCV", "Endothelial", "Metabolic / Liver / IR"]:
                 sc = domain_scores.get(dom, 0.0)
                 lab = domain_labels.get(dom, "NA")
                 st.write(f"- **{dom}**: {sc:.1f} ({lab})")
@@ -522,7 +514,7 @@ def main():
             "diabetes": diabetes_flag,
         }
 
-        pdf_bytes, pdf_err = build_pdf(
+        pdf_bytes = build_pdf(
             patient=patient,
             indices=indices,
             idx_sev=idx_sev,
@@ -532,15 +524,12 @@ def main():
             risk_cat=risk_cat,
         )
 
-        if pdf_err:
-            st.error(f"PDF could not be generated: {pdf_err}")
-        else:
-            st.download_button(
-                label="Download PDF Report",
-                data=pdf_bytes,
-                file_name=f"DiaWell_Metabolic_Report_{name or 'patient'}.pdf",
-                mime="application/pdf",
-            )
+        st.download_button(
+            label="Download PDF Report",
+            data=pdf_bytes,
+            file_name=f"DiaWell_Metabolic_Report_{name or 'patient'}.pdf",
+            mime="application/pdf",
+        )
 
         st.caption(
             "This tool is for educational and metabolic recovery guidance only and does not replace clinical judgment."
