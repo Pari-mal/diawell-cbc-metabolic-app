@@ -48,19 +48,26 @@ def calculate_indices(inputs):
     sex = inputs.get("sex", "M")
     diabetes_flag = inputs.get("diabetes", False)
 
+    # CBC / RBC data
     wbc = safe_float(inputs.get("wbc"))             # ×10⁹/L
     neut_pct = safe_float(inputs.get("neut_pct"))   # %
     lymph_pct = safe_float(inputs.get("lymph_pct")) # %
     mono_pct = safe_float(inputs.get("mono_pct"))   # %
     platelets = safe_float(inputs.get("platelets")) # ×10⁹/L
+    hb = safe_float(inputs.get("hb"))               # g/dL
+    mcv = safe_float(inputs.get("mcv"))             # fL
+    rdw = safe_float(inputs.get("rdw"))             # %
 
+    # Metabolic / liver
     fasting_glu = safe_float(inputs.get("fasting_glu"))  # mg/dL
     tg = safe_float(inputs.get("tg"))                   # mg/dL
     hdl = safe_float(inputs.get("hdl"))                 # mg/dL
     ast = safe_float(inputs.get("ast"))                 # IU/L
     alt = safe_float(inputs.get("alt"))                 # IU/L
     hba1c = safe_float(inputs.get("hba1c"))             # %
+    albumin = safe_float(inputs.get("albumin"))         # g/dL (reserved for future PNI/ALBI use)
 
+    # Anthropometry
     weight = safe_float(inputs.get("weight"))  # kg
     height = safe_float(inputs.get("height"))  # cm
     waist = safe_float(inputs.get("waist"))    # cm
@@ -143,6 +150,21 @@ def calculate_indices(inputs):
     if waist and hba1c:
         egdr = 21.16 - (0.09 * waist) - (3.41 * (1 if htn else 0)) - (0.55 * hba1c)
 
+    # ----- Oxidative / RBC indices from RDW, Hb, MCV ----- #
+
+    # RDW alone
+    rdw_index = rdw
+
+    # RDW/Hb ratio – evidence-based (higher = worse)
+    rdw_hb = None
+    if rdw is not None and hb and hb != 0:
+        rdw_hb = rdw / hb
+
+    # Hb/MCV ratio – evidence-based discriminator IDA vs thal trait (cut-off ~1.5)
+    hb_mcv_ratio = None
+    if hb is not None and mcv and mcv != 0:
+        hb_mcv_ratio = hb / mcv
+
     indices = {
         "NLR": nlr,
         "PLR": plr,
@@ -154,6 +176,9 @@ def calculate_indices(inputs):
         "HSI": hsi,
         "FIB-4": fib4,
         "eGDR": egdr,
+        "RDW": rdw_index,
+        "RDW/Hb": rdw_hb,
+        "Hb/MCV": hb_mcv_ratio,
     }
 
     # ----- Severity labels per index (UPDATED CUTOFFS) ----- #
@@ -259,6 +284,38 @@ def calculate_indices(inputs):
         ],
     )
 
+    # RDW (%)
+    idx_sev["RDW"] = classify_index(
+        rdw_index,
+        [
+            (13.0, "Normal"),
+            (14.5, "Mild high"),
+            (16.0, "Moderate high"),
+        ],
+    )
+
+    # RDW/Hb ratio – using literature that >1.4 associates with worse outcomes
+    idx_sev["RDW/Hb"] = classify_index(
+        rdw_hb,
+        [
+            (1.0, "Normal"),
+            (1.4, "Mild high"),
+            (1.8, "Moderate high"),
+        ],
+    )
+
+    # Hb/MCV ratio – descriptive only, not used for domain scoring
+    # <1.5 tends to TT-pattern, >=1.5 IDA-pattern, but both are pathologic; keep label neutral
+    if hb_mcv_ratio is None:
+        idx_sev["Hb/MCV"] = "NA"
+    else:
+        if hb_mcv_ratio < 1.3:
+            idx_sev["Hb/MCV"] = "Low Hb/MCV index (TT-like pattern)"
+        elif hb_mcv_ratio <= 1.7:
+            idx_sev["Hb/MCV"] = "Intermediate Hb/MCV index"
+        else:
+            idx_sev["Hb/MCV"] = "High Hb/MCV index (IDA-like pattern)"
+
     # ---- Map severity → numeric penalty for domain scores ---- #
 
     def sev_to_score(label):
@@ -278,10 +335,10 @@ def calculate_indices(inputs):
             return 3
         return 0
 
-    # Domains
+    # Domains – oxidative now uses AIP + RDW + RDW/Hb
     dom_map = {
         "Inflammation": ["NLR", "PLR", "SII", "SIRI"],
-        "Oxidative / Hb-MCV": ["AIP"],
+        "Oxidative / Hb-MCV": ["AIP", "RDW", "RDW/Hb"],
         "Endothelial": ["AIP", "METS-IR"],
         "Metabolic / Liver / IR": ["TyG", "METS-IR", "HSI", "FIB-4", "eGDR"],
     }
@@ -290,7 +347,7 @@ def calculate_indices(inputs):
     domain_labels = {}
 
     for dom, keys in dom_map.items():
-        vals = [sev_to_score(idx_sev[k]) for k in keys if k in idx_sev]
+        vals = [sev_to_score(idx_sev.get(k)) for k in keys if k in idx_sev]
         if not vals:
             domain_scores[dom] = 0.0
             domain_labels[dom] = "NA"
@@ -380,7 +437,12 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
     pdf.cell(0, 7, "Key Indices (with severity)", ln=True)
     pdf.set_font("Helvetica", "", 11)
 
-    order = ["NLR", "PLR", "SII", "SIRI", "TyG", "METS-IR", "AIP", "HSI", "FIB-4", "eGDR"]
+    order = [
+        "NLR", "PLR", "SII", "SIRI",
+        "TyG", "METS-IR", "AIP",
+        "HSI", "FIB-4", "eGDR",
+        "RDW", "RDW/Hb", "Hb/MCV",
+    ]
     for key in order:
         val = indices.get(key)
         lab = idx_sev.get(key, "NA")
@@ -410,6 +472,9 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
         "TyG = Triglyceride-Glucose Index",
         "METS-IR = Metabolic Score for Insulin Resistance",
         "eGDR = Estimated Glucose Disposal Rate",
+        "RDW = Red Cell Distribution Width",
+        "RDW/Hb = RDW-to-Hemoglobin ratio (oxidative/inflammatory load)",
+        "Hb/MCV = Hemoglobin-to-MCV ratio (IDA vs TT discriminator)",
     ]
 
     for ln in legend_lines:
@@ -444,7 +509,8 @@ def main():
     st.title("DiaWell C.O.R.E. – Metabolic Health & CBC Fitness Marker")
     st.write(
         "Enter CBC and metabolic parameters to generate an integrated metabolic health report "
-        "with inflammation, atherogenicity, insulin resistance, liver health, and a PDF summary."
+        "with inflammation, oxidative/RBC morphology (RDW, RDW/Hb, Hb/MCV), atherogenicity, "
+        "insulin resistance, liver health, and a PDF summary."
     )
 
     with st.form("input_form"):
@@ -472,16 +538,19 @@ def main():
         htn = st.checkbox("Hypertension present?", value=False)
 
         st.markdown("---")
-        st.subheader("CBC (Complete Blood Count) – key parameters")
+        st.subheader("CBC & RBC – key parameters")
         c1, c2, c3 = st.columns(3)
         with c1:
+            hb = st.number_input("Hemoglobin (g/dL)", min_value=0.0, value=14.0, step=0.1)
             wbc = st.number_input("Total WBC (×10⁹/L)", min_value=0.0, value=7.5, step=0.1)
             platelets = st.number_input("Platelets (×10⁹/L)", min_value=0.0, value=250.0, step=1.0)
         with c2:
             neut_pct = st.number_input("Neutrophils (%)", min_value=0.0, max_value=100.0, value=55.0, step=0.1)
             lymph_pct = st.number_input("Lymphocytes (%)", min_value=0.0, max_value=100.0, value=30.0, step=0.1)
-        with c3:
             mono_pct = st.number_input("Monocytes (%)", min_value=0.0, max_value=100.0, value=8.0, step=0.1)
+        with c3:
+            mcv = st.number_input("MCV (fL)", min_value=0.0, value=90.0, step=0.1)
+            rdw = st.number_input("RDW (%)", min_value=0.0, value=13.0, step=0.1)
 
         st.markdown("---")
         st.subheader("Metabolic / Liver / Lipid Parameters")
@@ -495,6 +564,7 @@ def main():
         with c3:
             ast = st.number_input("AST (IU/L)", min_value=0.0, value=30.0, step=1.0)
             alt = st.number_input("ALT (IU/L)", min_value=0.0, value=35.0, step=1.0)
+            albumin = st.number_input("Albumin (g/dL)", min_value=0.0, value=4.0, step=0.1)
 
         submitted = st.form_submit_button("Calculate & Generate Report")
 
@@ -508,12 +578,16 @@ def main():
             "lymph_pct": lymph_pct,
             "mono_pct": mono_pct,
             "platelets": platelets,
+            "hb": hb,
+            "mcv": mcv,
+            "rdw": rdw,
             "fasting_glu": fasting_glu,
             "tg": tg,
             "hdl": hdl,
             "ast": ast,
             "alt": alt,
             "hba1c": hba1c,
+            "albumin": albumin,
             "weight": weight,
             "height": height,
             "waist": waist,
@@ -539,7 +613,12 @@ def main():
 
         with colB:
             st.subheader("Key Indices")
-            for key in ["NLR", "PLR", "SII", "SIRI", "TyG", "METS-IR", "AIP", "HSI", "FIB-4", "eGDR"]:
+            for key in [
+                "NLR", "PLR", "SII", "SIRI",
+                "TyG", "METS-IR", "AIP",
+                "HSI", "FIB-4", "eGDR",
+                "RDW", "RDW/Hb", "Hb/MCV",
+            ]:
                 val = indices.get(key)
                 lab = idx_sev.get(key, "NA")
                 if val is None:
