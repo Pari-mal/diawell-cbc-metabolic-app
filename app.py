@@ -532,7 +532,6 @@ FULL_FORMS_LIST = [
 # ============================================================
 #                     PDF BUILDER
 # ============================================================
-
 def build_pdf(patient, blocks):
     pdf = ReportPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -541,6 +540,9 @@ def build_pdf(patient, blocks):
 
     pdf.add_page()
     pdf.set_font("Arial", "", 11)
+
+    # Compute usable text width (page width - left margin - right margin)
+    content_w = pdf.w - pdf.l_margin - pdf.r_margin
 
     # Patient info
     pdf.cell(0, 8, pdf_safe(f"Patient Name: {patient['name']}"), ln=True)
@@ -619,22 +621,22 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, "Domain Interpretation", ln=True)
     pdf.set_font("Arial", "", 11)
     pdf.multi_cell(
-        0,
+        content_w,
         6,
         pdf_safe(f"Inflammation: {blocks['inflam_comment']}"),
     )
     pdf.multi_cell(
-        0,
+        content_w,
         6,
         pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"),
     )
     pdf.multi_cell(
-        0,
+        content_w,
         6,
         pdf_safe(f"Endothelial: {blocks['endo_comment']}"),
     )
     pdf.multi_cell(
-        0,
+        content_w,
         6,
         pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"),
     )
@@ -645,7 +647,7 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, "Key Indices (with severity)", ln=True)
     pdf.set_font("Arial", "", 11)
     for line in blocks["key_indices_pdf"]:
-        pdf.cell(0, 6, pdf_safe(line), ln=True)
+        pdf.multi_cell(content_w, 6, pdf_safe(line))
     pdf.ln(4)
 
     # Full forms
@@ -653,13 +655,13 @@ def build_pdf(patient, blocks):
     pdf.cell(0, 8, "Full Forms of Indices", ln=True)
     pdf.set_font("Arial", "", 10)
     for ff in FULL_FORMS_LIST:
-        pdf.cell(0, 5, pdf_safe(ff), ln=True)
+        pdf.multi_cell(content_w, 5, pdf_safe(ff))
     pdf.ln(4)
 
     # Disclaimer
     pdf.set_font("Arial", "", 9)
     pdf.multi_cell(
-        0,
+        content_w,
         5,
         pdf_safe(
             "Disclaimer: This report is for educational and metabolic recovery "
