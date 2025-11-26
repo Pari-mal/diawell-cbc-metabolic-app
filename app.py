@@ -4,16 +4,16 @@ import streamlit as st
 from fpdf import FPDF
 
 # ============================================================
-#              PDF SETUP (UNICODE + CLEAN LAYOUT)
+#              SIMPLE PDF SETUP (ASCII, ARIAL)
 # ============================================================
 
 class ReportPDF(FPDF):
     def header(self):
-        self.set_font("DejaVu", "B", 14)
+        self.set_font("Arial", "B", 14)
         self.cell(
             0,
             8,
-            pdf_safe("DiaWell C.O.R.E. Foundation - Metabolic Health Report"),
+            "DiaWell C.O.R.E. Foundation - Metabolic Health Report",
             ln=True,
             align="C",
         )
@@ -21,39 +21,23 @@ class ReportPDF(FPDF):
 
     def footer(self):
         self.set_y(-15)
-        self.set_font("DejaVu", "", 9)
-        self.cell(0, 8, pdf_safe(f"Page {self.page_no()}"), align="C")
-
-
-def init_pdf():
-    pdf = ReportPDF()
-    # Unicode-capable DejaVu fonts (paths valid on Streamlit Cloud)
-    pdf.add_font(
-        "DejaVu",
-        "",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        uni=True,
-    )
-    pdf.add_font(
-        "DejaVu",
-        "B",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        uni=True,
-    )
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_left_margin(15)
-    pdf.set_right_margin(15)
-    return pdf
+        self.set_font("Arial", "", 9)
+        self.cell(0, 8, f"Page {self.page_no()}", align="C")
 
 
 def pdf_safe(text):
-    """Ensure text is safe for FPDF (convert to str and normalize dashes)."""
+    """Ensure text is safe for classic FPDF (ASCII + simple hyphens)."""
     if text is None:
         return ""
     if not isinstance(text, str):
         text = str(text)
-    # Replace fancy dashes with simple hyphen
-    text = text.replace("–", "-").replace("—", "-")
+    # Replace fancy dashes and arrows with ASCII words
+    text = (
+        text.replace("–", "-")
+            .replace("—", "-")
+            .replace("↑", "up")
+            .replace("↓", "down")
+    )
     return text
 
 
@@ -78,15 +62,31 @@ def severity_label_from_score(domain_score):
 
 
 def up_severity_text(level):
+    # For SCREEN (with arrows)
     if level is None:
         return "NA"
     return ["Normal", "Mild ↑", "Moderate ↑", "Severe ↑"][level]
 
 
 def down_severity_text(level):
+    # For SCREEN (with arrows)
     if level is None:
         return "NA"
     return ["Normal", "Mild ↓", "Moderate ↓", "Severe ↓"][level]
+
+
+def up_severity_text_ascii(level):
+    # For PDF (ASCII only)
+    if level is None:
+        return "NA"
+    return ["Normal", "Mild high", "Moderate high", "Severe high"][level]
+
+
+def down_severity_text_ascii(level):
+    # For PDF (ASCII only)
+    if level is None:
+        return "NA"
+    return ["Normal", "Mild low", "Moderate low", "Severe low"][level]
 
 
 def aip_severity_text(level):
@@ -102,7 +102,7 @@ def overall_risk_label(total_score):
         return "Moderate risk"
     if total_score < 75:
         return "High risk"
-    return "Very high risk – intensive optimization needed"
+    return "Very high risk - intensive optimization needed"
 
 
 # ============================================================
@@ -534,9 +534,13 @@ FULL_FORMS_LIST = [
 # ============================================================
 
 def build_pdf(patient, blocks):
-    pdf = init_pdf()
+    pdf = ReportPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_left_margin(15)
+    pdf.set_right_margin(15)
+
     pdf.add_page()
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("Arial", "", 11)
 
     # Patient info
     pdf.cell(0, 8, pdf_safe(f"Patient Name: {patient['name']}"), ln=True)
@@ -551,9 +555,9 @@ def build_pdf(patient, blocks):
     pdf.ln(4)
 
     # Overall summary
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, pdf_safe("Overall Summary"), ln=True)
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Overall Summary", ln=True)
+    pdf.set_font("Arial", "", 11)
     pdf.cell(
         0,
         6,
@@ -569,9 +573,9 @@ def build_pdf(patient, blocks):
     pdf.ln(4)
 
     # Domain scores
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, pdf_safe("Domain Scores (0-25 each)"), ln=True)
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Domain Scores (0-25 each)", ln=True)
+    pdf.set_font("Arial", "", 11)
     pdf.cell(
         0,
         6,
@@ -611,51 +615,51 @@ def build_pdf(patient, blocks):
     pdf.ln(4)
 
     # Domain-wise interpretation
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, pdf_safe("Domain Interpretation"), ln=True)
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Domain Interpretation", ln=True)
+    pdf.set_font("Arial", "", 11)
     pdf.multi_cell(
-        180,
+        0,
         6,
         pdf_safe(f"Inflammation: {blocks['inflam_comment']}"),
     )
     pdf.multi_cell(
-        180,
+        0,
         6,
         pdf_safe(f"Oxidative / Hb-MCV: {blocks['oxid_comment']}"),
     )
     pdf.multi_cell(
-        180,
+        0,
         6,
         pdf_safe(f"Endothelial: {blocks['endo_comment']}"),
     )
     pdf.multi_cell(
-        180,
+        0,
         6,
         pdf_safe(f"Metabolic / IR / Liver: {blocks['metab_comment']}"),
     )
     pdf.ln(4)
 
     # Key indices
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, pdf_safe("Key Indices (with severity)"), ln=True)
-    pdf.set_font("DejaVu", "", 11)
-    for line in blocks["key_indices"]:
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Key Indices (with severity)", ln=True)
+    pdf.set_font("Arial", "", 11)
+    for line in blocks["key_indices_pdf"]:
         pdf.cell(0, 6, pdf_safe(line), ln=True)
     pdf.ln(4)
 
     # Full forms
-    pdf.set_font("DejaVu", "B", 12)
-    pdf.cell(0, 8, pdf_safe("Full Forms of Indices"), ln=True)
-    pdf.set_font("DejaVu", "", 10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Full Forms of Indices", ln=True)
+    pdf.set_font("Arial", "", 10)
     for ff in FULL_FORMS_LIST:
         pdf.cell(0, 5, pdf_safe(ff), ln=True)
     pdf.ln(4)
 
     # Disclaimer
-    pdf.set_font("DejaVu", "", 9)
+    pdf.set_font("Arial", "", 9)
     pdf.multi_cell(
-        180,
+        0,
         5,
         pdf_safe(
             "Disclaimer: This report is for educational and metabolic recovery "
@@ -664,12 +668,9 @@ def build_pdf(patient, blocks):
         ),
     )
 
-    # Return bytes
-    pdf_bytes = pdf.output(dest="S")
-    if isinstance(pdf_bytes, bytes):
-        return pdf_bytes
-    else:
-        return str(pdf_bytes).encode("latin-1", "ignore")
+    # Return bytes (classic FPDF style)
+    pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
+    return pdf_bytes
 
 
 # ============================================================
@@ -805,7 +806,7 @@ def main():
             if metab["metab_score"] < 5
             else "Evidence of early insulin resistance or hepatic stress; lifestyle intensification is advisable."
             if metab["metab_score"] < 20
-            else "Significant metabolic / hepatic risk; consider comprehensive diabetes–liver–cardio optimization."
+            else "Significant metabolic / hepatic risk; consider comprehensive diabetes-liver-cardio optimization."
         )
 
         # ---------------- Show domain scores ----------------
@@ -907,48 +908,50 @@ def main():
             "date": today_str,
         }
 
-        key_indices_lines = []
+        # key indices lines for SCREEN (already shown above) use arrows.
+        # Now build ASCII-only versions for PDF:
+        key_indices_pdf = []
 
         if infl["nlr"] is not None:
-            key_indices_lines.append(
-                f"NLR: {infl['nlr']:.2f} ({up_severity_text(infl['s_nlr'])})"
+            key_indices_pdf.append(
+                f"NLR: {infl['nlr']:.2f} ({up_severity_text_ascii(infl['s_nlr'])})"
             )
         if infl["plr"] is not None:
-            key_indices_lines.append(
-                f"PLR: {infl['plr']:.1f} ({up_severity_text(infl['s_plr'])})"
+            key_indices_pdf.append(
+                f"PLR: {infl['plr']:.1f} ({up_severity_text_ascii(infl['s_plr'])})"
             )
         if infl["sii"] is not None:
-            key_indices_lines.append(
-                f"SII: {infl['sii']:.1f} ({up_severity_text(infl['s_sii'])})"
+            key_indices_pdf.append(
+                f"SII: {infl['sii']:.1f} ({up_severity_text_ascii(infl['s_sii'])})"
             )
         if infl["siri"] is not None:
-            key_indices_lines.append(
-                f"SIRI: {infl['siri']:.2f} ({up_severity_text(infl['s_siri'])})"
+            key_indices_pdf.append(
+                f"SIRI: {infl['siri']:.2f} ({up_severity_text_ascii(infl['s_siri'])})"
             )
 
         if metab["tyg"] is not None:
-            key_indices_lines.append(
-                f"TyG: {metab['tyg']:.2f} ({up_severity_text(metab['s_tyg'])})"
+            key_indices_pdf.append(
+                f"TyG: {metab['tyg']:.2f} ({up_severity_text_ascii(metab['s_tyg'])})"
             )
         if metab["mets_ir"] is not None:
-            key_indices_lines.append(
-                f"METS-IR: {metab['mets_ir']:.2f} ({up_severity_text(metab['s_mets'])})"
+            key_indices_pdf.append(
+                f"METS-IR: {metab['mets_ir']:.2f} ({up_severity_text_ascii(metab['s_mets'])})"
             )
         if metab["aip"] is not None:
-            key_indices_lines.append(
+            key_indices_pdf.append(
                 f"AIP: {metab['aip']:.3f} ({aip_severity_text(metab['s_aip'])})"
             )
         if metab["hsi"] is not None:
-            key_indices_lines.append(
-                f"HSI: {metab['hsi']:.1f} ({up_severity_text(metab['s_hsi'])})"
+            key_indices_pdf.append(
+                f"HSI: {metab['hsi']:.1f} ({up_severity_text_ascii(metab['s_hsi'])})"
             )
         if metab["fib4"] is not None:
-            key_indices_lines.append(
-                f"FIB-4: {metab['fib4']:.2f} ({up_severity_text(metab['s_fib4'])})"
+            key_indices_pdf.append(
+                f"FIB-4: {metab['fib4']:.2f} ({up_severity_text_ascii(metab['s_fib4'])})"
             )
-        key_indices_lines.append(
+        key_indices_pdf.append(
             f"eGDR: {metab['egdr']:.2f} mg/kg/min "
-            f"({down_severity_text(metab['s_egdr'])})"
+            f"({down_severity_text_ascii(metab['s_egdr'])})"
         )
 
         blocks = {
@@ -966,7 +969,7 @@ def main():
             "oxid_comment": oxid_comment,
             "endo_comment": endo_comment,
             "metab_comment": metab_comment,
-            "key_indices": key_indices_lines,
+            "key_indices_pdf": key_indices_pdf,
         }
 
         pdf_bytes = build_pdf(patient, blocks)
