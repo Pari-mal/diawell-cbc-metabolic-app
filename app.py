@@ -15,10 +15,9 @@ def safe_float(x, default=None):
 
 def classify_index(value, cutoffs):
     """
-    Generic classifier:
-    cutoffs = [(upper_limit, label), ...] in ascending order.
-    Returns label for first upper_limit where value <= upper_limit,
-    else returns label of last cutoff.
+    cutoffs: list of (upper_limit, label) in ascending order.
+    Returns label for the first upper_limit where value <= limit,
+    else the label of the last cutoff.
     """
     if value is None:
         return "NA"
@@ -41,6 +40,18 @@ def risk_from_total(total_score):
         return "High risk"
 
 
+def to_latin1(text):
+    """
+    Ensure text is safe for FPDF core fonts.
+    Non-latin-1 characters are stripped.
+    """
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+    return text.encode("latin-1", "ignore").decode("latin-1")
+
+
 # ----------------- Core calculations ----------------- #
 
 def calculate_indices(inputs):
@@ -49,11 +60,11 @@ def calculate_indices(inputs):
     diabetes_flag = inputs.get("diabetes", False)
 
     # CBC / RBC data
-    wbc = safe_float(inputs.get("wbc"))             # ×10⁹/L
+    wbc = safe_float(inputs.get("wbc"))             # x10^9/L
     neut_pct = safe_float(inputs.get("neut_pct"))   # %
     lymph_pct = safe_float(inputs.get("lymph_pct")) # %
     mono_pct = safe_float(inputs.get("mono_pct"))   # %
-    platelets = safe_float(inputs.get("platelets")) # ×10⁹/L
+    platelets = safe_float(inputs.get("platelets")) # x10^9/L
     hb = safe_float(inputs.get("hb"))               # g/dL
     mcv = safe_float(inputs.get("mcv"))             # fL
     rdw = safe_float(inputs.get("rdw"))             # %
@@ -101,12 +112,12 @@ def calculate_indices(inputs):
 
     sii = None
     if platelets is not None and anc is not None and alc is not None and alc != 0:
-        # SII using absolute values: (Platelets × ANC) / ALC
+        # SII using absolute values: (Platelets x ANC) / ALC
         sii = (platelets * anc) / alc
 
     siri = None
     if anc is not None and amc is not None and alc is not None and alc != 0:
-        # SIRI = (ANC × AMC) / ALC using absolute counts
+        # SIRI = (ANC x AMC) / ALC using absolute counts
         siri = (anc * amc) / alc
 
     # ----- Atherogenic / metabolic indices ----- #
@@ -168,7 +179,7 @@ def calculate_indices(inputs):
     if hb is not None and mcv and mcv != 0:
         hb_mcv_ratio = hb / mcv
 
-    # ----- New indices discussed today ----- #
+    # ----- New indices ----- #
 
     # RLR = RDW / ALC
     rlr = None
@@ -309,7 +320,7 @@ def calculate_indices(inputs):
         ],
     )
 
-    # eGDR (custom, higher is better)
+    # eGDR (higher is better)
     if egdr is None:
         idx_sev["eGDR"] = "NA"
     else:
@@ -416,12 +427,12 @@ def calculate_indices(inputs):
         else:
             idx_sev["PNI"] = "Normal"
 
-    # ---- Map severity → numeric penalty for domain scores ---- #
+    # ---- Map severity -> numeric penalty for domain scores ---- #
 
     def sev_to_score(label):
         if label in ("NA", None):
             return 0
-        # "Good" / low-risk labels
+        # Good / low-risk labels
         if label in ("Normal", "Low", "Low risk"):
             return 0
         # Mild / Borderline
@@ -490,7 +501,7 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
 
     # Header
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "DiaWell C.O.R.E. Foundation - Metabolic Health Report", ln=True)
+    pdf.cell(0, 10, to_latin1("DiaWell C.O.R.E. Foundation - Metabolic Health Report"), ln=True)
 
     pdf.ln(3)
     pdf.set_font("Helvetica", "", 11)
@@ -500,37 +511,37 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
     line3 = f"Date: {patient.get('date', '')}"
     line4 = f"Diabetes: {'Yes' if patient.get('diabetes', False) else 'No'}"
 
-    pdf.cell(0, 6, line1, ln=True)
-    pdf.cell(0, 6, line2, ln=True)
-    pdf.cell(0, 6, line3, ln=True)
-    pdf.cell(0, 6, line4, ln=True)
+    pdf.cell(0, 6, to_latin1(line1), ln=True)
+    pdf.cell(0, 6, to_latin1(line2), ln=True)
+    pdf.cell(0, 6, to_latin1(line3), ln=True)
+    pdf.cell(0, 6, to_latin1(line4), ln=True)
 
     pdf.ln(5)
 
     # Overall summary
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 7, "Overall Summary", ln=True)
+    pdf.cell(0, 7, to_latin1("Overall Summary"), ln=True)
     pdf.set_font("Helvetica", "", 11)
 
     score_str = f"{round(total_score, 1)}" if total_score is not None else "NA"
-    pdf.cell(0, 6, f"Total Score (0-100): {score_str}", ln=True)
-    pdf.cell(0, 6, f"Risk Category: {risk_cat}", ln=True)
+    pdf.cell(0, 6, to_latin1(f"Total Score (0-100): {score_str}"), ln=True)
+    pdf.cell(0, 6, to_latin1(f"Risk Category: {risk_cat}"), ln=True)
 
     # Domain scores
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 7, "Domain Scores (0-25 each)", ln=True)
+    pdf.cell(0, 7, to_latin1("Domain Scores (0-25 each)"), ln=True)
     pdf.set_font("Helvetica", "", 11)
 
     for dom in ["Inflammation", "Oxidative / Hb-MCV", "Endothelial", "Metabolic / Liver / IR"]:
         sc = domain_scores.get(dom, 0.0)
         lab = domain_labels.get(dom, "NA")
-        pdf.cell(0, 6, f"{dom}: {round(sc, 1)} ({lab})", ln=True)
+        pdf.cell(0, 6, to_latin1(f"{dom}: {round(sc, 1)} ({lab})"), ln=True)
 
     # Key indices
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 7, "Key Indices (with severity)", ln=True)
+    pdf.cell(0, 7, to_latin1("Key Indices (with severity)"), ln=True)
     pdf.set_font("Helvetica", "", 11)
 
     key_order = [
@@ -555,19 +566,20 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
                 val_str = f"{val:.2f}"
             else:
                 val_str = str(val)
-        pdf.cell(0, 6, f"{key}: {val_str} ({lab})", ln=True)
+        line = f"{key}: {val_str} ({lab})"
+        pdf.cell(0, 6, to_latin1(line), ln=True)
 
-    # Legend
+    # Legend (ASCII ONLY)
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 7, "Abbreviation Legend", ln=True)
+    pdf.cell(0, 7, to_latin1("Abbreviation Legend"), ln=True)
     pdf.set_font("Helvetica", "", 10)
 
     legend_lines = [
         "NLR = Neutrophil-to-Lymphocyte Ratio",
         "PLR = Platelet-to-Lymphocyte Ratio",
-        "SII = (Platelets × ANC) / ALC (all in ×10⁹/L)",
-        "SIRI = (ANC × AMC) / ALC",
+        "SII = (Platelets x ANC) / ALC (all in x10^9/L)",
+        "SIRI = (ANC x AMC) / ALC",
         "AIP = log10[TG(mmol/L)/HDL-C(mmol/L)]",
         "TyG = Triglyceride-Glucose Index",
         "METS-IR = Metabolic Score for Insulin Resistance",
@@ -581,13 +593,13 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
         "NHR = Neutrophil-to-HDL ratio",
         "MHR = Monocyte-to-HDL ratio",
         "RPR = RDW-to-Platelet ratio",
-        "Non-HDL = Total Cholesterol − HDL-C",
-        "PNI = 10×Albumin(g/dL) + 5×ALC(×10⁹/L)",
+        "Non-HDL = Total Cholesterol - HDL-C",
+        "PNI = 10 x Albumin(g/dL) + 5 x ALC(x10^9/L)",
     ]
 
     for ln in legend_lines:
         pdf.set_x(pdf.l_margin)
-        pdf.multi_cell(effective_width, 5, ln)
+        pdf.multi_cell(effective_width, 5, to_latin1(ln))
 
     # Disclaimer
     pdf.ln(3)
@@ -597,7 +609,7 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
         "replace clinical judgment or diagnostic workup. Please correlate with full clinical context."
     )
     pdf.set_x(pdf.l_margin)
-    pdf.multi_cell(effective_width, 5, disclaimer)
+    pdf.multi_cell(effective_width, 5, to_latin1(disclaimer))
 
     result = pdf.output(dest="S")
     if isinstance(result, str):
@@ -611,9 +623,9 @@ def build_pdf(patient, indices, idx_sev, domain_scores, domain_labels, total_sco
 # ----------------- Streamlit UI ----------------- #
 
 def main():
-    st.set_page_config(page_title="CBC & Metabolic Fitness Marker Report", layout="wide")
+    st.set_page_config(page_title="CBC and Metabolic Fitness Marker Report", layout="wide")
 
-    st.title("DiaWell C.O.R.E. – Metabolic Health & CBC Fitness Marker")
+    st.title("DiaWell C.O.R.E. - Metabolic Health and CBC Fitness Marker")
     st.write(
         "Enter CBC and metabolic parameters to generate an integrated metabolic health report "
         "with inflammation, oxidative/RBC morphology, atherogenicity, endothelial stress, insulin resistance, "
@@ -645,12 +657,12 @@ def main():
         htn = st.checkbox("Hypertension present?", value=False)
 
         st.markdown("---")
-        st.subheader("CBC & RBC – key parameters")
+        st.subheader("CBC and RBC - key parameters")
         c1, c2, c3 = st.columns(3)
         with c1:
             hb = st.number_input("Hemoglobin (g/dL)", min_value=0.0, value=14.0, step=0.1)
-            wbc = st.number_input("Total WBC (×10⁹/L)", min_value=0.0, value=7.5, step=0.1)
-            platelets = st.number_input("Platelets (×10⁹/L)", min_value=0.0, value=250.0, step=1.0)
+            wbc = st.number_input("Total WBC (x10^9/L)", min_value=0.0, value=7.5, step=0.1)
+            platelets = st.number_input("Platelets (x10^9/L)", min_value=0.0, value=250.0, step=1.0)
         with c2:
             neut_pct = st.number_input("Neutrophils (%)", min_value=0.0, max_value=100.0, value=55.0, step=0.1)
             lymph_pct = st.number_input("Lymphocytes (%)", min_value=0.0, max_value=100.0, value=30.0, step=0.1)
@@ -674,7 +686,7 @@ def main():
             alt = st.number_input("ALT (IU/L)", min_value=0.0, value=35.0, step=1.0)
             albumin = st.number_input("Albumin (g/dL)", min_value=0.0, value=4.0, step=0.1)
 
-        submitted = st.form_submit_button("Calculate & Generate Report")
+        submitted = st.form_submit_button("Calculate and Generate Report")
 
     if submitted:
         # treat 0.0 TC as "not entered"
