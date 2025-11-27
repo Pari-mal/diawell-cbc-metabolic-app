@@ -272,15 +272,17 @@ def calculate_indices(inputs):
         ],
     )
 
-    # AIP
+       # AIP
     idx_sev["AIP"] = classify_index(
         aip,
         [
-            (0.11, "Low risk"),
-            (0.15, "Borderline"),
-            (0.21, "Intermediate"),
+            (0.11, "Low risk"),     # < 0.11
+            (0.15, "Borderline"),   # 0.11 – < 0.15
+            (0.24, "Intermediate"), # 0.15 – < 0.24
+            (1.0, "High"),          # >= 0.24 (effectively > 0.24 in practice)
         ],
     )
+
 
     # TyG
     idx_sev["TyG"] = classify_index(
