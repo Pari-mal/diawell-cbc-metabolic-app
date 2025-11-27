@@ -272,17 +272,16 @@ def calculate_indices(inputs):
         ],
     )
 
-       # AIP
+    # AIP (updated cut-bands)
     idx_sev["AIP"] = classify_index(
         aip,
         [
-            (0.11, "Low risk"),     # < 0.11
-            (0.15, "Borderline"),   # 0.11 – < 0.15
-            (0.24, "Intermediate"), # 0.15 – < 0.24
-            (1.0, "High"),          # >= 0.24 (effectively > 0.24 in practice)
+            (0.11, "Low risk"),      # <0.11
+            (0.15, "Borderline"),    # 0.11–<0.15
+            (0.24, "Intermediate"),  # 0.15–<0.24
+            (1.0, "High"),           # >=0.24
         ],
     )
-
 
     # TyG
     idx_sev["TyG"] = classify_index(
@@ -304,12 +303,13 @@ def calculate_indices(inputs):
         ],
     )
 
-    # HSI
+    # HSI (updated cut-bands)
     idx_sev["HSI"] = classify_index(
         hsi,
         [
-            (30, "Low"),
-            (36, "Borderline"),
+            (30, "Low"),         # <30
+            (36, "Borderline"),  # 30–<36
+            (100, "High"),       # >=36
         ],
     )
 
